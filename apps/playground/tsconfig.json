@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["vite/client"],
+    "paths": {
+      "@nickkupriyanov/slotline-react": ["../../packages/react/src/index.ts"],
+      "@nickkupriyanov/slotline-react/motion": ["../../packages/react/src/motion.ts"],
+      "@nickkupriyanov/slotline-core": ["../../packages/core/src/index.ts"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}

@@ -1,0 +1,63 @@
+{
+  "name": "@nickkupriyanov/slotline-core",
+  "version": "0.1.0",
+  "description": "Framework-free core of the Slotline booking widget: flow state machine, date/time-zone helpers, copy, class names and the booking adapter contract.",
+  "keywords": [
+    "booking",
+    "scheduler",
+    "scheduling",
+    "calendar",
+    "appointment",
+    "meeting",
+    "timeslots",
+    "state-machine",
+    "headless"
+  ],
+  "license": "MIT",
+  "author": "Nick Kupriyanov",
+  "homepage": "https://github.com/nickkupriyanov/slotline#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nickkupriyanov/slotline.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/nickkupriyanov/slotline/issues"
+  },
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./styles.css": "./dist/slotline.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup && node scripts/postbuild.mjs",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.4"
+  }
+}

@@ -1,0 +1,861 @@
+/* ==========================================================================
+   Component layer.
+   ========================================================================== */
+
+.sl-root {
+  display: inline-block;
+  /*
+   * The width has to be a definite length here, not a percentage and not on
+   * `.sl-card`.
+   *
+   * `width: min(var(--sl-width), 100%)` resolves the percentage against the
+   * parent's *used* width. When that parent is itself shrink-to-fit (a grid or
+   * flex item, an inline-block, a float) it is derived from the content, so
+   * `--sl-width` was ignored and each step picked its own size — calendar 337px,
+   * slots 368px, details 384px, confirmation 343px — which read as the card
+   * jumping around while the flow advanced. A definite `width` keeps the
+   * intrinsic contribution at `--sl-width`, and `max-width: 100%` still lets it
+   * shrink inside a narrower parent.
+   */
+  width: var(--sl-width);
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Card -------------------------------------------------------------------- */
+
+.sl-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  background: var(--sl-surface);
+  border: 1px solid var(--sl-border);
+  border-radius: var(--sl-radius-card);
+  box-shadow: var(--sl-shadow-card);
+}
+
+.sl-card:focus {
+  outline: none;
+}
+
+/* Header ------------------------------------------------------------------ */
+
+.sl-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px 2px;
+}
+
+.sl-header-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sl-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sl-badge {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--sl-text-muted);
+  background: var(--sl-control);
+  border-radius: var(--sl-radius-pill);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sl-icon-button {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: var(--sl-text);
+  background: var(--sl-surface-raised);
+  border: 1px solid var(--sl-border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition:
+    background var(--sl-duration-fast) var(--sl-ease-standard),
+    transform var(--sl-duration-fast) var(--sl-ease-soft),
+    color var(--sl-duration-fast) var(--sl-ease-standard);
+}
+
+.sl-icon-button:hover {
+  background: var(--sl-control-hover);
+}
+
+.sl-icon-button:active {
+  transform: scale(0.93);
+}
+
+.sl-icon-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sl-icon-button:disabled:hover {
+  background: var(--sl-surface-raised);
+}
+
+/* Progress: the active pill stretches into a bar --------------------------- */
+
+.sl-progress {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding-right: 2px;
+}
+
+.sl-progress-pill {
+  width: 6px;
+  height: 6px;
+  background: var(--sl-text-subtle);
+  border-radius: var(--sl-radius-pill);
+  opacity: 0.5;
+  transition:
+    width var(--sl-duration-slow) var(--sl-ease-soft),
+    background var(--sl-duration) var(--sl-ease-standard),
+    opacity var(--sl-duration) var(--sl-ease-standard);
+}
+
+.sl-progress-pill[data-state='done'] {
+  width: 22px;
+  background: var(--sl-accent);
+  opacity: 1;
+}
+
+/* Panel ------------------------------------------------------------------- */
+
+.sl-panel {
+  padding: 12px;
+  background: var(--sl-panel);
+  border: 1px solid var(--sl-border);
+  border-radius: var(--sl-radius-panel);
+}
+
+/* Step transitions -------------------------------------------------------- */
+
+.sl-height {
+  position: relative;
+}
+
+.sl-step-host {
+  position: relative;
+}
+
+.sl-step {
+  animation: sl-step-forward var(--sl-duration-slow) var(--sl-ease-soft) both;
+}
+
+.sl-step-host[data-direction='back'] .sl-step {
+  animation-name: sl-step-back;
+}
+
+@keyframes sl-step-forward {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sl-step-back {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Calendar ---------------------------------------------------------------- */
+
+.sl-calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sl-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px;
+}
+
+.sl-month-label {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.sl-calendar-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.sl-nav-button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: var(--sl-text-muted);
+  background: transparent;
+  border: 1px solid var(--sl-border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition:
+    background var(--sl-duration-fast) var(--sl-ease-standard),
+    color var(--sl-duration-fast) var(--sl-ease-standard),
+    transform var(--sl-duration-fast) var(--sl-ease-soft);
+}
+
+.sl-nav-button:hover {
+  color: var(--sl-text);
+  background: var(--sl-control);
+}
+
+.sl-nav-button:active {
+  transform: scale(0.92);
+}
+
+.sl-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  padding: 6px 0 8px;
+  border-bottom: 1px solid var(--sl-border);
+}
+
+.sl-weekday {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sl-text-subtle);
+  text-align: center;
+}
+
+.sl-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 286px;
+  animation: sl-grid-in var(--sl-duration-slow) var(--sl-ease-soft) both;
+}
+
+.sl-grid-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+@keyframes sl-grid-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sl-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 46px;
+  padding: 4px 0 6px;
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--sl-text);
+  background: transparent;
+  border: 0;
+  border-radius: 13px;
+  cursor: default;
+  transition:
+    background var(--sl-duration-fast) var(--sl-ease-standard),
+    color var(--sl-duration-fast) var(--sl-ease-standard),
+    transform var(--sl-duration-fast) var(--sl-ease-soft);
+}
+
+.sl-day[aria-disabled='true'] {
+  color: var(--sl-text-subtle);
+}
+
+.sl-day.is-outside {
+  opacity: 0.4;
+}
+
+.sl-day.is-bookable {
+  cursor: pointer;
+}
+
+.sl-day[aria-current='date']:not(.is-selected) {
+  box-shadow: inset 0 0 0 1px var(--sl-border-strong);
+}
+
+.sl-day.is-bookable:hover {
+  background: var(--sl-control);
+}
+
+.sl-day.is-bookable:active {
+  transform: scale(0.94);
+}
+
+.sl-day.is-selected {
+  color: var(--sl-accent-ink);
+  background: var(--sl-accent-soft);
+}
+
+.sl-day-dot {
+  width: 5px;
+  height: 5px;
+  background: var(--sl-accent);
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(0.4);
+  transition:
+    opacity var(--sl-duration) var(--sl-ease-standard),
+    transform var(--sl-duration) var(--sl-ease-soft);
+  transition-delay: calc(var(--sl-index, 0) * 8ms);
+}
+
+.sl-day-dot[data-visible] {
+  opacity: 1;
+  transform: none;
+}
+
+.sl-grid[data-status='loading'] .sl-day {
+  opacity: 0.5;
+}
+
+.sl-timezone {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--sl-text-subtle);
+  text-align: center;
+}
+
+/* Slots ------------------------------------------------------------------- */
+
+.sl-slots-step {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sl-slots-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 4px 0;
+}
+
+.sl-slots-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  color: var(--sl-text-muted);
+  background: var(--sl-control);
+  border-radius: 10px;
+}
+
+.sl-slots-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.sl-slots-count {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--sl-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.sl-slots {
+  display: grid;
+  grid-template-columns: repeat(var(--sl-slot-columns), minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sl-slot {
+  padding: 12px 6px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--sl-text);
+  text-align: center;
+  background: var(--sl-control);
+  border: 0;
+  border-radius: var(--sl-radius-control);
+  cursor: pointer;
+  transition:
+    background var(--sl-duration-fast) var(--sl-ease-standard),
+    color var(--sl-duration-fast) var(--sl-ease-standard),
+    box-shadow var(--sl-duration-fast) var(--sl-ease-standard),
+    transform var(--sl-duration-fast) var(--sl-ease-soft);
+}
+
+.sl-slot:hover {
+  background: var(--sl-control-hover);
+  transform: translateY(-1px);
+}
+
+.sl-slot:active {
+  transform: scale(0.97);
+}
+
+.sl-slot.is-selected {
+  color: var(--sl-accent-ink);
+  background: var(--sl-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--sl-accent-soft-strong);
+}
+
+.sl-stagger-item {
+  animation: sl-item-in var(--sl-duration-slow) var(--sl-ease-soft) both;
+  animation-delay: calc(var(--sl-index, 0) * 18ms);
+}
+
+@keyframes sl-item-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sl-skeleton {
+  height: 44px;
+  background:
+    linear-gradient(
+      100deg,
+      var(--sl-skeleton-base) 30%,
+      var(--sl-skeleton-shine) 50%,
+      var(--sl-skeleton-base) 70%
+    );
+  background-size: 220% 100%;
+  border-radius: var(--sl-radius-control);
+  animation: sl-shimmer 1.4s linear infinite;
+  animation-delay: calc(var(--sl-index, 0) * 45ms);
+}
+
+@keyframes sl-shimmer {
+  from {
+    background-position: 140% 0;
+  }
+  to {
+    background-position: -40% 0;
+  }
+}
+
+/* Details ----------------------------------------------------------------- */
+
+.sl-details-step {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sl-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  color: var(--sl-accent-ink);
+  background: var(--sl-accent-soft);
+  border-radius: var(--sl-radius-control);
+}
+
+.sl-summary-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  background: var(--sl-accent-soft-strong);
+  border-radius: 10px;
+}
+
+.sl-summary-body {
+  min-width: 0;
+}
+
+.sl-summary-date {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.sl-summary-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+.sl-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sl-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sl-input {
+  width: 100%;
+  padding: 13px 14px;
+  font: inherit;
+  font-size: 14.5px;
+  color: var(--sl-text);
+  background: var(--sl-control);
+  border: 1px solid transparent;
+  border-radius: var(--sl-radius-control);
+  transition:
+    background var(--sl-duration-fast) var(--sl-ease-standard),
+    border-color var(--sl-duration-fast) var(--sl-ease-standard),
+    box-shadow var(--sl-duration) var(--sl-ease-soft);
+}
+
+.sl-input::placeholder {
+  color: var(--sl-text-subtle);
+}
+
+.sl-input:hover:not(:disabled) {
+  background: var(--sl-control-hover);
+}
+
+.sl-input:focus {
+  background: var(--sl-control);
+  border-color: var(--sl-accent);
+  box-shadow: 0 0 0 3px var(--sl-accent-soft);
+}
+
+.sl-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sl-field[data-invalid='true'] .sl-input {
+  border-color: var(--sl-danger);
+}
+
+.sl-field-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--sl-danger-ink);
+  animation: sl-error-in var(--sl-duration) var(--sl-ease-soft) both;
+}
+
+@keyframes sl-error-in {
+  from {
+    opacity: 0;
+    transform: translate3d(-3px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sl-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 2px;
+  padding: 14px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--sl-accent-contrast);
+  background: var(--sl-accent);
+  border: 0;
+  border-radius: var(--sl-radius-control);
+  box-shadow: 0 10px 24px -14px var(--sl-accent-glow);
+  cursor: pointer;
+  transition:
+    background var(--sl-duration-fast) var(--sl-ease-standard),
+    color var(--sl-duration-fast) var(--sl-ease-standard),
+    box-shadow var(--sl-duration-fast) var(--sl-ease-standard),
+    transform var(--sl-duration-fast) var(--sl-ease-soft);
+}
+
+.sl-submit:hover:not(:disabled) {
+  background: var(--sl-accent-hover);
+}
+
+.sl-submit:active:not(:disabled) {
+  background: var(--sl-accent-press);
+  transform: scale(0.99);
+}
+
+.sl-submit:disabled {
+  color: var(--sl-text-subtle);
+  background: var(--sl-control);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.sl-submit[data-loading] {
+  cursor: progress;
+}
+
+.sl-submit-arrow {
+  transition: transform var(--sl-duration) var(--sl-ease-soft);
+}
+
+.sl-submit:hover:not(:disabled) .sl-submit-arrow {
+  transform: translateX(3px);
+}
+
+/* Empty & error states ---------------------------------------------------- */
+
+.sl-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 36px 12px;
+  text-align: center;
+}
+
+.sl-empty-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.sl-empty-body {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sl-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.sl-empty .sl-secondary-button {
+  align-self: center;
+  margin-top: 10px;
+}
+
+.sl-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-wrap: anywhere;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--sl-danger-ink);
+  background: var(--sl-danger-soft);
+  border-radius: 12px;
+  animation: sl-error-in var(--sl-duration) var(--sl-ease-soft) both;
+}
+
+.sl-link-button {
+  margin-left: auto;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+/* Confirmation ------------------------------------------------------------ */
+
+.sl-confirmation {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 4px 4px;
+}
+
+.sl-confirmation-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  color: var(--sl-accent);
+  background: var(--sl-accent-soft);
+  border-radius: 16px;
+  animation: sl-pop var(--sl-duration-slow) var(--sl-ease-soft) both;
+}
+
+@keyframes sl-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sl-check-path {
+  stroke-dasharray: 26;
+  stroke-dashoffset: 26;
+  animation: sl-draw 520ms var(--sl-ease-soft) 120ms forwards;
+}
+
+@keyframes sl-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.sl-confirmation-title {
+  margin: 14px 0 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  animation: sl-step-forward var(--sl-duration-slow) var(--sl-ease-soft) 60ms both;
+}
+
+.sl-confirmation-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-wrap: anywhere;
+  margin-top: 8px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--sl-text-muted);
+  animation: sl-step-forward var(--sl-duration-slow) var(--sl-ease-soft) 140ms both;
+}
+
+.sl-confirmation-text p {
+  margin: 0;
+}
+
+.sl-secondary-button {
+  align-self: flex-start;
+  margin-top: 18px;
+  padding: 11px 18px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--sl-text);
+  background: var(--sl-control);
+  border: 1px solid var(--sl-border);
+  border-radius: var(--sl-radius-control);
+  cursor: pointer;
+  transition:
+    background var(--sl-duration-fast) var(--sl-ease-standard),
+    transform var(--sl-duration-fast) var(--sl-ease-soft);
+}
+
+.sl-secondary-button:hover {
+  background: var(--sl-control-hover);
+}
+
+.sl-secondary-button:active {
+  transform: scale(0.97);
+}
+
+/* Duration footer --------------------------------------------------------- */
+
+.sl-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 4px 6px;
+}
+
+.sl-duration-label {
+  font-size: 13px;
+  color: var(--sl-text-subtle);
+  white-space: nowrap;
+}
+
+.sl-duration-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sl-duration-pill {
+  padding: 10px 14px;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--sl-text-muted);
+  background: var(--sl-control);
+  border: 1px solid transparent;
+  border-radius: var(--sl-radius-control);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background var(--sl-duration) var(--sl-ease-standard),
+    color var(--sl-duration) var(--sl-ease-standard),
+    transform var(--sl-duration-fast) var(--sl-ease-soft);
+}
+
+.sl-duration-pill:hover {
+  color: var(--sl-text);
+  background: var(--sl-control-hover);
+}
+
+.sl-duration-pill:active {
+  transform: scale(0.97);
+}
+
+.sl-duration-pill[data-state='active'] {
+  color: var(--sl-ink-contrast);
+  background: var(--sl-ink);
+}
+
+/* Narrow screens ---------------------------------------------------------- */
+
+@media (max-width: 380px) {
+  .sl-root {
+    --sl-slot-columns: 2;
+  }
+
+  .sl-title {
+    font-size: 17px;
+  }
+}

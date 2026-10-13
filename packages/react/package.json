@@ -1,0 +1,102 @@
+{
+  "name": "@nickkupriyanov/slotline-react",
+  "version": "0.1.0",
+  "description": "Themable, accessible React booking widget: month calendar → time slots → details → confirmation. CSS-variable theming, dark theme by default, soft animations, bring-your-own backend.",
+  "keywords": [
+    "react",
+    "booking",
+    "scheduler",
+    "scheduling",
+    "calendar",
+    "appointment",
+    "meeting",
+    "timeslots",
+    "widget",
+    "dark-theme",
+    "headless"
+  ],
+  "license": "MIT",
+  "author": "Nick Kupriyanov",
+  "homepage": "https://github.com/nickkupriyanov/slotline#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nickkupriyanov/slotline.git",
+    "directory": "packages/react"
+  },
+  "bugs": {
+    "url": "https://github.com/nickkupriyanov/slotline/issues"
+  },
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./motion": {
+      "types": "./dist/motion.d.ts",
+      "import": "./dist/motion.js",
+      "require": "./dist/motion.cjs"
+    },
+    "./styles.css": "./dist/slotline.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@nickkupriyanov/slotline-core": "workspace:^"
+  },
+  "scripts": {
+    "build": "tsup && node scripts/postbuild.mjs",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0 || ^19.0.0",
+    "react-dom": "^18.2.0 || ^19.0.0",
+    "motion": "^11.0.0 || ^12.0.0 || ^13.0.0 || ^14.0.0"
+  },
+  "peerDependenciesMeta": {
+    "motion": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@storybook/addon-a11y": "^10.6.1",
+    "@storybook/addon-docs": "^10.6.1",
+    "@storybook/react-vite": "^10.6.1",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "jsdom": "^30.1.2",
+    "motion": "^14.1.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "storybook": "^10.6.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.4"
+  }
+}

@@ -1,0 +1,118 @@
+/* ==========================================================================
+   Design tokens.
+
+   Dark is the default theme. Everything is a plain custom property on
+   `.sl-root`, so an app can retheme the widget by overriding a handful of
+   variables — no Tailwind, no CSS-in-JS, no build step:
+
+     .sl-root { --sl-accent: #7c5cff; --sl-surface: #101018; }
+   ========================================================================== */
+
+.sl-root {
+  /* Shape ------------------------------------------------------------------ */
+  --sl-radius-card: 28px;
+  --sl-radius-panel: 22px;
+  --sl-radius-control: 14px;
+  --sl-radius-pill: 999px;
+  /* Widget width. It is a hard width, not a hint: every step renders at
+     exactly this size (or 100% of a narrower parent). */
+  --sl-width: 400px;
+  --sl-slot-columns: 3;
+
+  /* Type ------------------------------------------------------------------- */
+  --sl-font-family:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif;
+  --sl-font-size: 14px;
+
+  /* Motion ----------------------------------------------------------------- */
+  --sl-ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --sl-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --sl-duration-fast: 140ms;
+  --sl-duration: 240ms;
+  --sl-duration-slow: 420ms;
+
+  /* Palette: dark (default) ------------------------------------------------ */
+  color-scheme: dark;
+
+  --sl-surface: #141419;
+  --sl-surface-raised: #1d1d25;
+  --sl-panel: #1b1b22;
+  --sl-control: #23232c;
+  --sl-control-hover: #2c2c37;
+
+  --sl-text: #f4f4f6;
+  --sl-text-muted: #a2a2b0;
+  --sl-text-subtle: #71717f;
+
+  --sl-ink: #f4f4f6;
+  --sl-ink-contrast: #16161a;
+
+  --sl-accent: #ff215a;
+  --sl-accent-hover: #ff4271;
+  --sl-accent-press: #e30f49;
+  --sl-accent-contrast: #ffffff;
+  --sl-accent-ink: #ff6b90;
+  --sl-accent-soft: rgba(255, 33, 90, 0.16);
+  --sl-accent-soft-strong: rgba(255, 33, 90, 0.28);
+  --sl-accent-glow: rgba(255, 33, 90, 0.45);
+
+  --sl-danger: #ff6178;
+  --sl-danger-ink: #ffc2cb;
+  --sl-danger-soft: rgba(255, 97, 120, 0.14);
+
+  --sl-border: rgba(255, 255, 255, 0.07);
+  --sl-border-strong: rgba(255, 255, 255, 0.14);
+  --sl-focus-ring: rgba(255, 33, 90, 0.6);
+
+  --sl-skeleton-base: rgba(255, 255, 255, 0.05);
+  --sl-skeleton-shine: rgba(255, 255, 255, 0.12);
+
+  --sl-shadow-card:
+    0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 32px 64px -32px rgba(0, 0, 0, 0.9),
+    0 8px 24px -16px rgba(0, 0, 0, 0.7);
+}
+
+/* Palette: light ----------------------------------------------------------- */
+
+.sl-root[data-sl-theme='light'] {
+  color-scheme: light;
+
+  --sl-surface: #f4f4f5;
+  --sl-surface-raised: #ffffff;
+  --sl-panel: #ffffff;
+  --sl-control: #f4f4f6;
+  --sl-control-hover: #ececef;
+
+  --sl-text: #171719;
+  --sl-text-muted: #7e7e8a;
+  --sl-text-subtle: #adadb8;
+
+  --sl-ink: #171719;
+  --sl-ink-contrast: #ffffff;
+
+  --sl-accent: #ff215a;
+  --sl-accent-hover: #f5114e;
+  --sl-accent-press: #d80c43;
+  --sl-accent-contrast: #ffffff;
+  --sl-accent-ink: #c2144a;
+  --sl-accent-soft: #fee5e6;
+  --sl-accent-soft-strong: #fbd2d5;
+  --sl-accent-glow: rgba(255, 33, 90, 0.35);
+
+  --sl-danger: #e0243f;
+  --sl-danger-ink: #a3102a;
+  --sl-danger-soft: #fde8ec;
+
+  --sl-border: rgba(23, 23, 25, 0.07);
+  --sl-border-strong: rgba(23, 23, 25, 0.14);
+  --sl-focus-ring: rgba(255, 33, 90, 0.45);
+
+  --sl-skeleton-base: rgba(23, 23, 25, 0.06);
+  --sl-skeleton-shine: rgba(23, 23, 25, 0.12);
+
+  --sl-shadow-card:
+    0 32px 64px -40px rgba(23, 23, 25, 0.35),
+    0 6px 20px -12px rgba(23, 23, 25, 0.12);
+}

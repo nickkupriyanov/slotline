@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["vitest/globals", "@testing-library/jest-dom"],
+    "paths": {
+      "@nickkupriyanov/slotline-react": ["./src/index.ts"],
+      "@nickkupriyanov/slotline-react/motion": ["./src/motion.ts"],
+      "@nickkupriyanov/slotline-core": ["../core/src/index.ts"]
+    }
+  },
+  "include": ["src", "scripts", ".storybook", "*.config.ts"]
+}

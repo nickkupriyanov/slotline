@@ -1,0 +1,32 @@
+{
+  "name": "slotline-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Monorepo for @nickkupriyanov/slotline-react — a themable, accessible React booking widget",
+  "packageManager": "pnpm@9.8.0",
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+  },
+  "scripts": {
+    "build": "pnpm --filter @nickkupriyanov/slotline-core build && pnpm --filter @nickkupriyanov/slotline-react build",
+    "dev": "pnpm --filter @nickkupriyanov/slotline-playground dev",
+    "preview": "pnpm --filter @nickkupriyanov/slotline-playground preview",
+    "storybook": "pnpm --filter @nickkupriyanov/slotline-react storybook",
+    "build-storybook": "pnpm --filter @nickkupriyanov/slotline-react build-storybook",
+    "test": "pnpm -r test",
+    "test:watch": "pnpm --filter @nickkupriyanov/slotline-react test:watch",
+    "typecheck": "pnpm -r typecheck",
+    "verify:install": "node tools/verify-install.mjs",
+    "check:layout": "node tools/check-layout.mjs",
+    "screenshot": "node tools/screenshot.mjs",
+    "format": "prettier --write \"**/*.{ts,tsx,css,json,md}\"",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm build && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^3.0.3",
+    "prettier": "^3.9.10",
+    "typescript": "^5.9.3"
+  }
+}
