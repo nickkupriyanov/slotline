@@ -3,13 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "//": "The @nickkupriyanov/slotline-* dependencies are injected by tools/verify-install.mjs, which points them at the freshly packed tarballs. Do not pin versions here.",
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@nickkupriyanov/slotline-core": "file:../../packages/core/nickkupriyanov-slotline-core-0.1.0.tgz",
-    "@nickkupriyanov/slotline-react": "file:../../packages/react/nickkupriyanov-slotline-react-0.1.0.tgz",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

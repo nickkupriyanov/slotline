@@ -4,20 +4,25 @@
  *
  *   1. build + `pnpm pack` both library packages (core first — the React
  *      postbuild copies the core stylesheet)
- *   2. copy `tools/install-check` into a scratch app outside the workspace globs
+ *   2. copy `tools/install-check` into a scratch app outside the workspace
+ *      globs and point its dependencies at the freshly packed tarballs
  *   3. `npm install` the tarballs (with a scratch-local cache)
  *   4. `tsc --noEmit` — proves the shipped `.d.ts` files and `exports` map resolve
  *   5. `vite build` — proves the CSS entry point and both JS entries bundle
  *
  * `pnpm pack` (unlike `npm pack`) rewrites the React package's `workspace:^`
- * dependency on the core to a semver range, so the tarballs install in a
- * clean app. The rewrite is asserted below, not assumed.
+ * dependency on the core to a semver range, so the tarballs install in a clean
+ * app. The rewrite is asserted below, not assumed.
+ *
+ * The packages version independently, so tarball names are derived from each
+ * package's own name and version, and the scratch manifest is pointed at them
+ * at run time instead of hardcoding file names.
  *
  * Run with `pnpm verify:install`. The scratch app lands in `.verify/app`.
  */
 import { spawn } from 'node:child_process';
-import { cp, mkdir, readdir, readFile, rm } from 'node:fs/promises';
-import { basename, dirname, join, resolve } from 'node:path';
+import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -26,21 +31,25 @@ const scratch = join(root, '.verify/app');
 /** npm needs the executable plus a writable cache inside the workspace. */
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const cacheDir = join(root, '.verify/npm-cache');
-const core = JSON.parse(await readFile(join(root, 'packages/core/package.json'), 'utf8'));
+
+const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'));
+
+/** `@scope/name` at `version` → the file name `pnpm pack` produces. */
+const tarballName = (name, version) => `${name.replace(/^@/, '').replace('/', '-')}-${version}.tgz`;
 
 /** Build order matters: the React postbuild resolves the core stylesheet. */
-const PACKAGES = [
-  {
-    label: '@nickkupriyanov/slotline-core',
-    dir: join(root, 'packages/core'),
-    tarball: `nickkupriyanov-slotline-core-${core.version}.tgz`,
-  },
-  {
-    label: '@nickkupriyanov/slotline-react',
-    dir: join(root, 'packages/react'),
-    tarball: `nickkupriyanov-slotline-react-${core.version}.tgz`,
-  },
-];
+const PACKAGES = [];
+for (const dir of ['packages/core', 'packages/react']) {
+  const manifest = await readJson(join(root, dir, 'package.json'));
+  PACKAGES.push({
+    label: manifest.name,
+    dir: join(root, dir),
+    version: manifest.version,
+    tarball: tarballName(manifest.name, manifest.version),
+  });
+}
+const core = PACKAGES[0];
+const react = PACKAGES[PACKAGES.length - 1];
 
 function run(command, args, cwd) {
   return new Promise((done, fail) => {
@@ -85,15 +94,13 @@ for (const { label, dir, tarball: expected } of PACKAGES) {
   const tarball = (await readdir(dir)).find((file) => file.endsWith('.tgz'));
   if (!tarball) throw new Error(`pnpm pack produced no tarball for ${label}`);
   if (tarball !== expected) {
-    throw new Error(
-      `pnpm pack produced ${tarball}, but tools/install-check/package.json expects ${expected} — update it.`,
-    );
+    throw new Error(`pnpm pack produced ${tarball}, but this script expected ${expected}`);
   }
   console.log(`  → ${tarball}`);
 }
 
-step('assert the packed React manifest does not ship "workspace:*"');
-const reactTarball = join(root, 'packages/react', PACKAGES[1].tarball);
+step(`assert the packed ${react.label} manifest does not ship "workspace:^"`);
+const reactTarball = join(react.dir, react.tarball);
 const manifest = JSON.parse(
   await capture(
     'tar',
@@ -101,9 +108,9 @@ const manifest = JSON.parse(
     dirname(reactTarball),
   ),
 );
-const pinned = manifest.dependencies?.['@nickkupriyanov/slotline-core'];
+const pinned = manifest.dependencies?.[core.label];
 if (!pinned) {
-  throw new Error('the packed React manifest has no @nickkupriyanov/slotline-core dependency');
+  throw new Error(`the packed React manifest has no ${core.label} dependency`);
 }
 if (pinned.includes('workspace:')) {
   throw new Error(`pnpm pack left "${pinned}" in the tarball — a clean app could not install it`);
@@ -116,12 +123,23 @@ if (!allowed.includes(pinned)) {
       .join(', ')}`,
   );
 }
-console.log(`  → @nickkupriyanov/slotline-core pinned to ${pinned}`);
+console.log(`  → ${core.label} pinned to ${pinned}`);
 
 step('prepare scratch app');
 await rm(scratch, { recursive: true, force: true });
 await mkdir(scratch, { recursive: true });
 await cp(join(root, 'tools/install-check'), scratch, { recursive: true });
+
+// The template deliberately does not pin the library versions: point it at the
+// tarballs that were just packed, so this check survives every version bump.
+const scratchManifestPath = join(scratch, 'package.json');
+const scratchManifest = await readJson(scratchManifestPath);
+scratchManifest.dependencies ??= {};
+for (const { label, dir, tarball } of PACKAGES) {
+  scratchManifest.dependencies[label] = `file:${relative(scratch, join(dir, tarball))}`;
+}
+await writeFile(scratchManifestPath, `${JSON.stringify(scratchManifest, null, 2)}\n`, 'utf8');
+console.log(`  → ${PACKAGES.map((entry) => entry.tarball).join(', ')}`);
 
 step('npm install (tarballs + react + vite)');
 await run(npm, ['install', '--no-audit', '--no-fund', '--cache', cacheDir], scratch);
