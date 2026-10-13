@@ -32,6 +32,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Turns an opaque publish failure into a readable diagnosis: an empty,
+      # invalid or under-scoped NPM_TOKEN is the usual cause of a red Release.
+      - name: Verify the npm token
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::NPM_TOKEN is empty or the secret is missing. Add it under Settings → Secrets and variables → Actions, and name it exactly NPM_TOKEN."
+            exit 1
+          fi
+          if ! who=$(npm whoami 2>&1); then
+            echo "::error::NPM_TOKEN does not authenticate: $who"
+            echo "::error::Recreate it as a granular access token: Packages and scopes → Read and write, All packages, and Bypass two-factor authentication (2FA) checked."
+            exit 1
+          fi
+          echo "::notice::npm token authenticates as $who"
+
       # Opens (or updates) the "Version Packages" pull request. Merging that PR
       # runs `pnpm release`, which builds both packages and publishes them.
       # changesets publishes the core before the React binding, because the
