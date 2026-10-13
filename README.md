@@ -1,13 +1,21 @@
 # @nickkupriyanov/slotline-react
 
+[![CI](https://github.com/nickkupriyanov/slotline/actions/workflows/ci.yml/badge.svg)](https://github.com/nickkupriyanov/slotline/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@nickkupriyanov/slotline-react?label=npm)](https://www.npmjs.com/package/@nickkupriyanov/slotline-react)
+[![Live demo](https://img.shields.io/badge/demo-live-ff215a)](https://nickkupriyanov.github.io/slotline/)
+[![Storybook](https://img.shields.io/badge/storybook-open-ff4785)](https://nickkupriyanov.github.io/slotline/storybook/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 A booking widget for React: **month calendar → time slots → details → confirmation**, in one drop-in component.
+
+**[Live demo](https://nickkupriyanov.github.io/slotline/)** · **[Storybook](https://nickkupriyanov.github.io/slotline/storybook/)**
 
 - 🌘 **Dark theme by default**, light theme included, both driven by plain CSS variables.
 - 🧩 **Bring your own backend** — one small `adapter` interface (`getAvailability` / `getSlots` / `createBooking`). No vendor lock-in, no iframe, no OAuth.
 - 🫧 **Soft animations out of the box** (pure CSS, zero runtime) with an optional [Motion](https://motion.dev) entry point for spring transitions.
 - 🌍 **Time zones and locales done properly** — `Intl`-based, DST-safe, `en`/`ru` copy shipped, any locale tag works for formatting.
 - ♿ **Accessible by default** — APG-style month grid, roving tabindex, live-region step announcements, focus management, `prefers-reduced-motion` support.
-- 📦 Tiny: **~14.5 kB gzip** for the ESM bundle and **~3.6 kB gzip** of CSS, no runtime dependencies.
+- 📦 Tiny: **~15 kB gzip** for the ESM entry plus the core it depends on, and **~4.5 kB gzip** of CSS — with no third-party runtime dependencies.
 
 ![The four steps of Slotline in the dark theme](docs/images/steps-dark.png)
 
@@ -263,6 +271,16 @@ packages/react      the React binding (@nickkupriyanov/slotline-react)
 apps/playground     dev playground + state gallery (gallery.html)
 tools/              screenshot + packaging verification scripts
 ```
+
+### Releases
+
+Versions are managed with [changesets](https://github.com/changesets/changesets). `0.1.0` was the initial publish and needed no changeset; every change after it does:
+
+```bash
+pnpm changeset          # pick the packages and the bump, describe the change
+```
+
+Pushing that to `main` opens a "Version Packages" pull request. Merging it publishes the core first and then the React binding, tags both, and creates the GitHub releases. The workflow needs an `NPM_TOKEN` repository secret.
 
 ## Scope and known limits
 

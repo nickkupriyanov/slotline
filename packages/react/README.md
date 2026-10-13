@@ -1,6 +1,14 @@
 # @nickkupriyanov/slotline-react
 
+[![npm](https://img.shields.io/npm/v/@nickkupriyanov/slotline-react?label=npm)](https://www.npmjs.com/package/@nickkupriyanov/slotline-react)
+[![CI](https://github.com/nickkupriyanov/slotline/actions/workflows/ci.yml/badge.svg)](https://github.com/nickkupriyanov/slotline/actions/workflows/ci.yml)
+[![Live demo](https://img.shields.io/badge/demo-live-ff215a)](https://nickkupriyanov.github.io/slotline/)
+[![Storybook](https://img.shields.io/badge/storybook-open-ff4785)](https://nickkupriyanov.github.io/slotline/storybook/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/nickkupriyanov/slotline/blob/main/LICENSE)
+
 A booking widget for React: **month calendar → time slots → details → confirmation** in one drop-in component.
+
+**[Live demo](https://nickkupriyanov.github.io/slotline/)** · **[Storybook](https://nickkupriyanov.github.io/slotline/storybook/)**
 
 Dark theme by default, plain-CSS theming, soft animations, `Intl`-correct time zones, and one small adapter that connects it to your backend.
 
@@ -22,7 +30,7 @@ export const Booking = () => <Slotline adapter={createMockAdapter()} theme="dark
 - **Soft animations with zero runtime**: direction-aware step transitions, animated height, staggered slot reveals, a self-drawing check mark. Optional `@nickkupriyanov/slotline-react/motion` entry for spring transitions.
 - **Accessible**: ARIA grid with roving tabindex, keyboard navigation, live-region step announcements, focus management, labelled controls, `prefers-reduced-motion` support.
 - **Correct dates**: day keys are time-zone aware, slots are instants, everything formats through `Intl`. `en` and `ru` copy included, any locale tag works.
-- **Small**: ~14.5 kB gzip ESM + ~3.6 kB gzip CSS, no runtime dependencies.
+- **Small**: ~15 kB gzip ESM (this package plus the core it depends on) + ~4.5 kB gzip CSS, no third-party runtime dependencies.
 
 ## Entries
 
