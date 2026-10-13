@@ -9,13 +9,14 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      # Reads `packageManager` from package.json (pnpm 9.8.0).
-      - uses: pnpm/action-setup@v4
+      # Reads `packageManager` from package.json (pnpm 9.8.0). `version` is left
+      # unset on purpose: v6 still defaults to that field.
+      - uses: pnpm/action-setup@v6
 
       # 24 is the LTS that satisfies vitest's `^22.12.0 || ^24.0.0 || >=26.0.0`.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm

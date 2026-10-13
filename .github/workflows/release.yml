@@ -16,14 +16,14 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # changesets needs the history to find the base branch.
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -53,15 +53,22 @@ jobs:
       # runs `pnpm release`, which builds both packages and publishes them.
       # changesets publishes the core before the React binding, because the
       # binding depends on it.
+      #
+      # v2 renamed every input: version→version-script, publish→publish-script,
+      # commit→commit-message, title→pr-title. The old names are ignored
+      # silently, not rejected. v2 also creates the git tags and GitHub releases
+      # (both default to true), which v1 never did — hence the missing tags.
+      # It authenticates through `github-token`, not the GITHUB_TOKEN env var.
       - name: Create the release PR, or publish to npm
-        uses: changesets/action@v1
+        uses: changesets/action@v2
         with:
-          version: pnpm version-packages
-          publish: pnpm release
-          commit: 'chore: version packages'
-          title: 'chore: version packages'
+          version-script: pnpm version-packages
+          publish-script: pnpm release
+          commit-message: 'chore: version packages'
+          pr-title: 'chore: version packages'
+          create-github-releases: true
+          push-git-tags: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # npm authenticates through the .npmrc that actions/setup-node
           # generates, and that file interpolates NODE_AUTH_TOKEN. Setting
           # NPM_TOKEN instead leaves the token unread: npm publishes
