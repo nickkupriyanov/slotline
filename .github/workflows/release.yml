@@ -62,6 +62,9 @@ jobs:
           title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Granular access token with read/write on the @nickkupriyanov scope.
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # npm authenticates through the .npmrc that actions/setup-node
+          # generates, and that file interpolates NODE_AUTH_TOKEN. Setting
+          # NPM_TOKEN instead leaves the token unread: npm publishes
+          # anonymously and the registry answers E404 on the PUT.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: 'true'
