@@ -27,6 +27,12 @@ export default defineConfig({
         find: '@nickkupriyanov/slotline-react',
         replacement: source('../../packages/react/src/index.ts'),
       },
+      // The `/dom` subpath has to be matched first: the entry below is a prefix
+      // alias and would otherwise rewrite it into `…/src/index.ts/dom`.
+      {
+        find: '@nickkupriyanov/slotline-core/dom',
+        replacement: source('../../packages/core/src/dom/index.ts'),
+      },
       {
         find: '@nickkupriyanov/slotline-core',
         replacement: source('../../packages/core/src/index.ts'),

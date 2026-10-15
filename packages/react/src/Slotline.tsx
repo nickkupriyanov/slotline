@@ -1,34 +1,31 @@
-import { useMemo } from 'react';
 import { cssAnimations } from './animations/css';
 import { SlotlineView } from './components/SlotlineView';
-import { FlowContext, UIContext, type SlotlineUIContextValue } from './context';
-import { useBookingFlow } from './useBookingFlow';
+import { FlowContext, UIContext } from './context';
+import { useBookingController, useSlotlineUI } from './useBookingFlow';
+import { useMemo, useSyncExternalStore } from 'react';
+import type { DefaultBookingValues } from '@nickkupriyanov/slotline-core';
 import type { AnimationKit, SlotlineProps, SlotlineProviderProps } from './types';
 
 /**
- * Provides the booking flow to any UI. Use it directly to build a custom
- * widget on top of `useSlotlineContext()`.
+ * Provides the booking flow to any UI. Use it directly to build a custom widget
+ * on top of `useSlotlineContext()`.
+ *
+ * The provider owns exactly one controller: it is created here, kept in step with
+ * the props, started after mounting and stopped on unmount.
  */
-export function SlotlineProvider(props: SlotlineProviderProps) {
+export function SlotlineProvider<TValues = DefaultBookingValues>(
+  props: SlotlineProviderProps<TValues>,
+) {
   const { children } = props;
-  const flow = useBookingFlow(props);
+  const controller = useBookingController(props);
+  const ui = useSlotlineUI(props);
 
-  const ui = useMemo<SlotlineUIContextValue>(
-    () => ({
-      animations: props.animations ?? cssAnimations,
-      classNames: props.classNames,
-      autoFocus: props.autoFocus ?? false,
-      trapFocus: props.trapFocus ?? false,
-      className: props.className,
-    }),
-    [
-      props.animations,
-      props.classNames,
-      props.autoFocus,
-      props.trapFocus,
-      props.className,
-    ],
+  const snapshot = useSyncExternalStore(
+    controller.subscribe,
+    controller.getSnapshot,
+    controller.getSnapshot,
   );
+  const flow = useMemo(() => ({ snapshot, actions: controller.actions }), [snapshot, controller]);
 
   return (
     <FlowContext.Provider value={flow}>
@@ -42,7 +39,7 @@ export function SlotlineProvider(props: SlotlineProviderProps) {
  * `@nickkupriyanov/slotline-react/motion` and available for custom kits.
  */
 export function createSlotline(animations: AnimationKit) {
-  function ComposedSlotline(props: SlotlineProps) {
+  function ComposedSlotline<TValues = DefaultBookingValues>(props: SlotlineProps<TValues>) {
     return (
       <SlotlineProvider {...props} animations={props.animations ?? animations}>
         <SlotlineView />

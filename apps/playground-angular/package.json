@@ -1,0 +1,29 @@
+{
+  "name": "@nickkupriyanov/slotline-playground-angular",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Local playground for @nickkupriyanov/slotline-angular \u2014 dev server and visual check",
+  "type": "module",
+  "scripts": {
+    "dev": "ng serve",
+    "build": "ng build",
+    "typecheck": "ngc -p tsconfig.app.json"
+  },
+  "dependencies": {
+    "@angular/common": "^21.2.0",
+    "@angular/compiler": "^21.2.0",
+    "@angular/core": "^21.2.0",
+    "@angular/forms": "^21.2.0",
+    "@angular/platform-browser": "^21.2.0",
+    "@nickkupriyanov/slotline-angular": "workspace:*",
+    "@nickkupriyanov/slotline-core": "workspace:*",
+    "rxjs": "^7.8.2",
+    "tslib": "^2.8.1"
+  },
+  "devDependencies": {
+    "@angular/build": "^21.2.0",
+    "@angular/cli": "^21.2.0",
+    "@angular/compiler-cli": "^21.2.0",
+    "typescript": "~5.9.3"
+  }
+}

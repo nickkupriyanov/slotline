@@ -1,0 +1,10 @@
+/* Proves the published stylesheet entry point resolves in a real app build. */
+@import '@nickkupriyanov/slotline-angular/styles.css';
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #14161c;
+}

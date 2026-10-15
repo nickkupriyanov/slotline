@@ -17,40 +17,46 @@ type Target = 'date' | 'time' | 'details' | 'confirmed';
  * gallery always shows genuine component output — not a mock-up.
  */
 function AutoDrive({ target }: { target: Target }) {
-  const { state, actions, monthGrid, isDayBookable } = useSlotlineContext();
+  const { snapshot, actions } = useSlotlineContext();
+  const view = snapshot.view;
 
   useEffect(() => {
     if (target === 'date') return;
-    if (state.step !== 'date' || state.daysStatus !== 'ready') return;
-    const day = monthGrid.find((candidate) => isDayBookable(candidate));
+    if (view.step !== 'date' || view.month.status !== 'ready') return;
+    const day = view.month.grid.find((candidate) => view.days[candidate]?.bookable);
     if (day) actions.selectDate(day);
-  }, [target, state.step, state.daysStatus, monthGrid, isDayBookable, actions]);
+  }, [target, view.step, view.month.status, view.month.grid, view.days, actions]);
 
   useEffect(() => {
     if (target === 'date' || target === 'time') return;
-    if (state.step !== 'time' || state.slotsStatus !== 'ready') return;
-    const slot = state.slots[0];
+    if (view.step !== 'time' || view.slots.status !== 'ready') return;
+    const slot = view.slots.items[0];
     if (slot) actions.selectSlot(slot);
-  }, [target, state.step, state.slotsStatus, state.slots, actions]);
+  }, [target, view.step, view.slots.status, view.slots.items, actions]);
 
   useEffect(() => {
     if (target !== 'confirmed') return;
-    if (state.step !== 'details') return;
-    if (!state.details.name || !state.details.email) {
-      actions.setDetails({ name: 'Ann Example', email: 'ann@example.com' });
+    if (view.step !== 'details') return;
+    if (!view.form.values.name || !view.form.values.email) {
+      actions.setValues({ name: 'Ann Example', email: 'ann@example.com' });
       return;
     }
-    if (state.submitStatus === 'idle') void actions.submit();
-  }, [target, state.step, state.details, state.submitStatus, actions]);
+    if (view.actions.canSubmit) void actions.submit();
+  }, [target, view.step, view.form.values, view.actions.canSubmit, actions]);
 
   return null;
 }
 
-const STATES: Array<{ target: Target; caption: string }> = [
-  { target: 'date', caption: '1 · calendar' },
-  { target: 'time', caption: '2 · slots' },
-  { target: 'details', caption: '3 · details' },
-  { target: 'confirmed', caption: '4 · booked' },
+/**
+ * The cases the gallery shows, each marked on the element it renders:
+ * `data-sl-case`, `data-sl-step` and `data-sl-layout`. A check reads those instead
+ * of counting figures, so adding a case never needs a check update.
+ */
+const STATES: Array<{ target: Target; caption: string; step: string; layout: string }> = [
+  { target: 'date', caption: '1 · calendar', step: 'date', layout: 'compact' },
+  { target: 'time', caption: '2 · slots', step: 'time', layout: 'compact' },
+  { target: 'details', caption: '3 · details', step: 'details', layout: 'compact' },
+  { target: 'confirmed', caption: '4 · booked', step: 'confirmed', layout: 'compact' },
 ];
 
 function Gallery() {
@@ -62,8 +68,14 @@ function Gallery() {
 
   return (
     <div className="gallery" data-theme={theme}>
-      {STATES.map(({ target, caption }) => (
-        <figure className="gallery__item" key={target}>
+      {STATES.map(({ target, caption, step, layout }) => (
+        <figure
+          className="gallery__item"
+          key={`${step}-${layout}`}
+          data-sl-case={target}
+          data-sl-step={step}
+          data-sl-layout={layout}
+        >
           <figcaption>{caption}</figcaption>
           <SlotlineProvider
             adapter={createMockAdapter({ horizonDays: 90, latency: 0 })}

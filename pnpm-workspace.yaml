@@ -1,3 +1,12 @@
 packages:
   - 'packages/*'
   - 'apps/*'
+
+# The matcher types of `@testing-library/jest-dom/vitest` augment Vitest's own
+# assertion interface, so the package has to resolve the *consumer's* Vitest.
+# With two Vitest majors in the workspace (5 for core/React, 4 for Angular), the
+# undeclared import would otherwise land on whichever copy pnpm hoists.
+packageExtensions:
+  '@testing-library/jest-dom':
+    peerDependencies:
+      vitest: '*'

@@ -71,24 +71,16 @@ describe('accessibility — keyboard', () => {
     start.focus();
 
     await user.keyboard('{ArrowRight}');
-    await waitFor(() =>
-      expect(document.activeElement).toHaveAttribute('data-day', '2026-05-05'),
-    );
+    await waitFor(() => expect(document.activeElement).toHaveAttribute('data-day', '2026-05-05'));
 
     await user.keyboard('{ArrowDown}');
-    await waitFor(() =>
-      expect(document.activeElement).toHaveAttribute('data-day', '2026-05-12'),
-    );
+    await waitFor(() => expect(document.activeElement).toHaveAttribute('data-day', '2026-05-12'));
 
     await user.keyboard('{Home}');
-    await waitFor(() =>
-      expect(document.activeElement).toHaveAttribute('data-day', '2026-05-10'),
-    );
+    await waitFor(() => expect(document.activeElement).toHaveAttribute('data-day', '2026-05-10'));
 
     await user.keyboard('{End}');
-    await waitFor(() =>
-      expect(document.activeElement).toHaveAttribute('data-day', '2026-05-16'),
-    );
+    await waitFor(() => expect(document.activeElement).toHaveAttribute('data-day', '2026-05-16'));
 
     await user.keyboard('{PageDown}');
     await waitFor(() => expect(screen.getByText('June 2026')).toBeInTheDocument());

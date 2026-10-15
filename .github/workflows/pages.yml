@@ -49,14 +49,19 @@ jobs:
           PAGES_BASE: ${{ steps.pages.outputs.base_path }}/
         run: pnpm --filter @nickkupriyanov/slotline-playground build
 
+      # The Angular playground lives beside the React one, under /angular/.
+      - name: Build the Angular playground for the project page subpath
+        run: pnpm --filter @nickkupriyanov/slotline-playground-angular build -- --base-href=/${{ steps.pages.outputs.base_path }}/angular/
+
       # Storybook emits relative asset URLs (./assets/…), so it needs no base.
       - name: Build Storybook
         run: pnpm build-storybook
 
       - name: Assemble the site
         run: |
-          mkdir -p site/storybook
+          mkdir -p site/angular site/storybook
           cp -r apps/playground/dist/. site/
+          cp -r apps/playground-angular/dist/browser/. site/angular/
           cp -r packages/react/storybook-static/. site/storybook/
           touch site/.nojekyll
           find site -maxdepth 1

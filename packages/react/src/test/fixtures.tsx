@@ -1,12 +1,7 @@
 import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { Slotline } from '../Slotline';
-import type {
-  SlotlineProps,
-  BookingAdapter,
-  BookingRequest,
-  BookingResult,
-} from '../types';
+import type { SlotlineProps, BookingAdapter, BookingRequest, BookingResult } from '../types';
 
 /** Fixed calendar so tests never depend on the day they run. */
 export const OPEN_DAYS = ['2026-05-04', '2026-05-05', '2026-05-06', '2026-05-11', '2026-05-18'];
@@ -14,7 +9,7 @@ export const OPEN_DAYS = ['2026-05-04', '2026-05-05', '2026-05-06', '2026-05-11'
 export const SLOT_STARTS = ['T09:15:00Z', 'T10:00:00Z'] as const;
 
 export function slotsFor(day: string) {
-  return SLOT_STARTS.map((suffix) => ({ start: `${day}${suffix}` }));
+  return SLOT_STARTS.map((suffix) => ({ id: `${day}${suffix}`, start: `${day}${suffix}` }));
 }
 
 export interface TestAdapterHandle {
@@ -28,9 +23,7 @@ export interface TestAdapterHandle {
   };
 }
 
-export function createTestAdapter(
-  overrides: Partial<BookingAdapter> = {},
-): TestAdapterHandle {
+export function createTestAdapter(overrides: Partial<BookingAdapter> = {}): TestAdapterHandle {
   const calls: TestAdapterHandle['calls'] = {
     availability: 0,
     slots: 0,
@@ -55,8 +48,14 @@ export function createTestAdapter(
     },
     async createBooking(request): Promise<BookingResult> {
       calls.bookings.push(request);
-      return { id: 'booking_1', inviteeEmail: request.details.email };
+      return {
+        id: 'booking_1',
+        status: 'confirmed',
+        invitation: { status: 'sent', email: request.values.email },
+      };
     },
+    // A deterministic double still declares what a real backend would.
+    capabilities: { idempotentCreate: true, idempotencyRetentionMs: 60_000 },
     ...overrides,
   };
 

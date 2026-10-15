@@ -3,76 +3,161 @@
  * Each entry point adds its own `Slotline` component bound to an animation kit.
  *
  * Framework-free modules are re-exported straight from
- * `@nickkupriyanov/slotline-core`, so the React package keeps the exact same
- * public API it had when they lived here.
+ * `@nickkupriyanov/slotline-core`: the controller, the derived view model, the
+ * reducer and the domain contract all live there, so a second binding renders the
+ * same behaviour.
  */
 
 export { SlotlineProvider, createSlotline } from './Slotline';
 export { SlotlineView } from './components/SlotlineView';
 export { useBookingFlow } from './useBookingFlow';
-export type { UseBookingFlowResult } from './useBookingFlow';
-export {
-  FlowContext,
-  UIContext,
-  useAnimations,
-  useSlotlineContext,
-  useClassNames,
-  useUI,
-} from './context';
-export type { SlotlineUIContextValue } from './context';
+export { useAnimations, useSlotlineContext, useClassNames, useUI } from './context';
+export type { SlotlineUIContextValue, UseBookingFlowResult } from './context';
 export { cssAnimations } from './animations/css';
 
-export { createMockAdapter } from '@nickkupriyanov/slotline-core';
-export type { MockAdapterOptions } from '@nickkupriyanov/slotline-core';
-export { SLOT_CLASS } from '@nickkupriyanov/slotline-core';
-export { cx } from '@nickkupriyanov/slotline-core';
+/* -- Flow, controller and derivation ---------------------------------------- */
+
+export {
+  bookingReducer,
+  countSlots,
+  createBookingController,
+  createBookingState,
+  createEmptyValues,
+  deriveBookingView,
+  resolveBookingConfig,
+  resolveBookingFields,
+  unmappedFieldNames,
+  userSteps,
+  validateBookingValues,
+  visibleFieldErrors,
+} from '@nickkupriyanov/slotline-core';
+
+export type {
+  BookingAction,
+  BookingAttemptState,
+  BookingController,
+  BookingControllerActions,
+  BookingControllerHandlers,
+  BookingControllerInputs,
+  BookingControllerOptions,
+  BookingConfig,
+  BookingConfigInput,
+  BookingConfigOverrides,
+  BookingErrorContext,
+  BookingFieldConfig,
+  BookingFieldOption,
+  BookingFieldType,
+  BookingSnapshot,
+  BookingState,
+  BookingView,
+  ResolvedBookingField,
+  SelectionStatus,
+  SubmitStatus,
+} from '@nickkupriyanov/slotline-core';
+
+/* -- Errors, identity and context ------------------------------------------- */
+
+export {
+  BOOKING_ERROR_CODES,
+  BookingError,
+  guaranteesNotCreated,
+  isAbortError,
+  isBookingError,
+  isBookingErrorCode,
+  toBookingError,
+  createIdempotencyKey,
+  DEFAULT_BOOKING_CONTEXT,
+  DEFAULT_CONTEXT_KEY,
+  contextKeyOf,
+} from '@nickkupriyanov/slotline-core';
+
+/* -- Time ------------------------------------------------------------------- */
+
+export {
+  createTimeAnchor,
+  isRetrySafe,
+  midnightAfter,
+  retryWindowClosesAt,
+  soonestBoundary,
+  systemClock,
+  timeAnchorKey,
+} from '@nickkupriyanov/slotline-core';
+
+/* -- Date helpers ----------------------------------------------------------- */
 
 export {
   addDays,
   addMonths,
   buildMonthGrid,
+  clampDayKey,
   compareDayKeys,
   dayKeyOf,
   dayKeyOfInstant,
+  detectLocale,
+  endOf,
   formatFullDay,
   formatMonthYear,
   formatTime,
   formatTimeZoneName,
+  formatUtcOffset,
+  instantOf,
+  instantOfZonedTime,
   isDayKey,
+  isRepeatedLocalTime,
   monthKeyOf,
+  resolveTimeZone,
   todayKey,
+  wallKeyOf,
+  zoneOffsetMs,
 } from '@nickkupriyanov/slotline-core';
+export type { InstantLike } from '@nickkupriyanov/slotline-core';
+
+/* -- Copy and the mock adapter ---------------------------------------------- */
 
 export { defaultMessages, format, resolveMessages } from '@nickkupriyanov/slotline-core';
-
+export { createMockAdapter, SLOT_CLASS, cx } from '@nickkupriyanov/slotline-core';
+export type { MockAdapterOptions, MockFailure } from '@nickkupriyanov/slotline-core';
 export {
-  FLOW_STEPS,
-  countSlots,
-  createFlowState,
-  flowReducer,
-  stepIndex,
-  validateDetails,
+  DEFAULT_BOOKING_FIELDS,
+  DEFAULT_DURATION_OPTIONS,
+  DEFAULT_TIME_FORMAT,
+  FALLBACK_LOCALE,
+  FALLBACK_TIME_ZONE,
+  FLOW_STEP_ORDER,
 } from '@nickkupriyanov/slotline-core';
-export type { FieldErrors, FlowAction, FlowState } from '@nickkupriyanov/slotline-core';
 
 export type {
   AnimationKit,
+  AvailabilityAdapter,
   AvailabilityQuery,
+  BookingAdapter,
+  BookingAttemptOutcome,
+  BookingCapabilities,
+  BookingChangeMetadata,
+  BookingClock,
+  BookingContext,
+  BookingDetails,
+  BookingErrorCode,
+  BookingInvitation,
+  BookingRequest,
+  BookingResult,
+  BookingTimeAnchor,
+  BookingValues,
+  DayAvailability,
+  DefaultBookingValues,
+  HeightProps,
+  InitialBookingAttempt,
+  LoadStatus,
+  SelectionChangeReason,
   SlotlineClassSlot,
   SlotlineMessages,
   SlotlineProps,
   SlotlineProviderProps,
   SlotlineStep,
   SlotlineTheme,
-  BookingAdapter,
-  BookingDetails,
-  BookingRequest,
-  BookingResult,
-  DayAvailability,
-  HeightProps,
-  LoadStatus,
   SlotsQuery,
   StaggerItemProps,
   StepHostProps,
+  TimeFormat,
   TimeSlot,
 } from './types';

@@ -6,7 +6,7 @@
  * *instant* formatted through `Intl`. Calendar days are pure values with no time
  * zone attached, so they are computed in UTC and never shifted by DST.
  */
-import type { TimeSlot } from './types';
+import type { TimeFormat, TimeSlot } from './types';
 
 const DAY_KEY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const MONTH_KEY_RE = /^(\d{4})-(\d{2})$/;
@@ -162,14 +162,80 @@ export function normalizeDateInput(
 /*  Instants                                                                   */
 /* -------------------------------------------------------------------------- */
 
-export function instantOf(slot: TimeSlot): Date {
+/**
+ * Anything carrying an instant: a full `TimeSlot`, or a bare `{ start }` when
+ * only the moment matters. The identity of an offer is never needed to format
+ * it or to derive its end.
+ */
+export type InstantLike = Pick<TimeSlot, 'start' | 'end'>;
+
+export function instantOf(slot: InstantLike): Date {
   return new Date(slot.start);
 }
 
 /** `slot.end`, or `start` + duration when the adapter only sent a start. */
-export function endOf(slot: TimeSlot, durationMinutes: number): string {
+export function endOf(slot: InstantLike, durationMinutes: number): string {
   if (slot.end) return slot.end;
   return new Date(instantOf(slot).getTime() + durationMinutes * 60_000).toISOString();
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Zone arithmetic                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Offset of `timeZone` at a given instant, in milliseconds east of UTC.
+ *
+ * `hourCycle: 'h23'` rather than `hour12: false` on purpose: some ICU versions
+ * render midnight as hour `24` with `hour12: false`, which would put the offset a
+ * whole day out exactly at the boundary `midnightAfter` cares about.
+ */
+export function zoneOffsetMs(date: Date, timeZone: string): number {
+  const parts = getFormatter('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(date);
+  const lookup: Record<string, number> = {};
+  for (const part of parts) {
+    if (part.type !== 'literal') lookup[part.type] = Number(part.value);
+  }
+  const asUtc = Date.UTC(
+    lookup.year ?? 1970,
+    (lookup.month ?? 1) - 1,
+    lookup.day ?? 1,
+    lookup.hour ?? 0,
+    lookup.minute ?? 0,
+    lookup.second ?? 0,
+  );
+  return asUtc - date.getTime();
+}
+
+/**
+ * The UTC instant of a local wall time in `timeZone`.
+ *
+ * `minutesFromMidnight` is measured from local midnight on `dayKey`. The offset is
+ * measured at the guessed instant and again at the resolved one, so a transition
+ * falling between the two does not leave the result an hour out. A wall time that
+ * does not exist (the hour a spring transition skips) resolves to the instant the
+ * clock shows right after the shift, which is the closest existing moment.
+ */
+export function instantOfZonedTime(
+  dayKey: string,
+  minutesFromMidnight: number,
+  timeZone: string,
+): Date {
+  const [year, month, day] = dayKey.split('-').map(Number);
+  const hour = Math.floor(minutesFromMidnight / 60);
+  const minute = minutesFromMidnight % 60;
+  const guess = Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1, hour, minute);
+  const first = new Date(guess - zoneOffsetMs(new Date(guess), timeZone));
+  return new Date(guess - zoneOffsetMs(first, timeZone));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -192,14 +258,65 @@ export function formatFullDay(dayKey: string, locale: string): string {
   }).format(anchorOf(dayKey));
 }
 
-/** "10:15" in the requested time zone. */
-export function formatTime(iso: string, timeZone: string, locale: string): string {
+/** "10:15", or "10:15 AM" when the 12-hour cycle is requested. */
+export function formatTime(
+  iso: string,
+  timeZone: string,
+  locale: string,
+  timeFormat: TimeFormat = '24h',
+): string {
   return getFormatter(locale, {
     timeZone,
     hour: '2-digit',
     minute: '2-digit',
-    hourCycle: 'h23',
+    hourCycle: timeFormat === '12h' ? 'h12' : 'h23',
   }).format(new Date(iso));
+}
+
+/**
+ * The local wall time of an instant as `YYYY-MM-DDTHH:mm` in `timeZone`.
+ *
+ * Locale-independent on purpose: it is meant for comparisons, such as deciding
+ * whether a local time occurs twice, not for display.
+ */
+export function wallKeyOf(date: Date, timeZone: string): string {
+  const parts = getFormatter('en-CA', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(date);
+  const lookup: Record<string, string> = {};
+  for (const part of parts) {
+    if (part.type !== 'literal') lookup[part.type] = part.value;
+  }
+  return `${lookup.year}-${lookup.month}-${lookup.day}T${lookup.hour}:${lookup.minute}`;
+}
+
+/**
+ * `true` when the local time of an instant is not unique in `timeZone` — the hour
+ * a daylight-saving fall-back repeats. Both passes are reported, because both are
+ * ambiguous to a user reading a wall clock.
+ */
+export function isRepeatedLocalTime(iso: string, timeZone: string): boolean {
+  const at = new Date(iso).getTime();
+  if (Number.isNaN(at)) return false;
+  const wall = wallKeyOf(new Date(at), timeZone);
+  return (
+    wallKeyOf(new Date(at - 3_600_000), timeZone) === wall ||
+    wallKeyOf(new Date(at + 3_600_000), timeZone) === wall
+  );
+}
+
+/** "+02:00" / "-04:00" — the offset of a zone at an instant. */
+export function formatUtcOffset(iso: string, timeZone: string): string {
+  const offsetMinutes = Math.round(zoneOffsetMs(new Date(iso), timeZone) / 60_000);
+  const sign = offsetMinutes < 0 ? '-' : '+';
+  const absolute = Math.abs(offsetMinutes);
+  return `${sign}${pad(Math.floor(absolute / 60))}:${pad(absolute % 60)}`;
 }
 
 /** "GMT+2" / "CEST" — used only as a hint under the calendar. */

@@ -30,17 +30,17 @@ export const Booking = () => <Slotline adapter={createMockAdapter()} theme="dark
 - **Soft animations with zero runtime**: direction-aware step transitions, animated height, staggered slot reveals, a self-drawing check mark. Optional `@nickkupriyanov/slotline-react/motion` entry for spring transitions.
 - **Accessible**: ARIA grid with roving tabindex, keyboard navigation, live-region step announcements, focus management, labelled controls, `prefers-reduced-motion` support.
 - **Correct dates**: day keys are time-zone aware, slots are instants, everything formats through `Intl`. `en` and `ru` copy included, any locale tag works.
-- **Small**: ~15 kB gzip ESM (this package plus the core it depends on) + ~4.5 kB gzip CSS, no third-party runtime dependencies.
+- **Small**: ~29 kB gzip ESM (this package plus the core it depends on) + ~4.5 kB gzip CSS, no third-party runtime dependencies.
 
 ## Entries
 
-| Import | What you get |
-| --- | --- |
-| `@nickkupriyanov/slotline-react` | `Slotline`, `SlotlineProvider`, `SlotlineView`, `useBookingFlow`, `useSlotlineContext`, `createMockAdapter`, types, date and i18n helpers. |
-| `@nickkupriyanov/slotline-react/motion` | The same API with a spring-based animation kit. Requires the optional `motion` peer dependency. |
-| `@nickkupriyanov/slotline-react/styles.css` | The stylesheet. Import it once. |
+| Import                                      | What you get                                                                                                                               |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@nickkupriyanov/slotline-react`            | `Slotline`, `SlotlineProvider`, `SlotlineView`, `useBookingFlow`, `useSlotlineContext`, `createMockAdapter`, types, date and i18n helpers. |
+| `@nickkupriyanov/slotline-react/motion`     | The same API with a spring-based animation kit. Requires the optional `motion` peer dependency.                                            |
+| `@nickkupriyanov/slotline-react/styles.css` | The stylesheet. Import it once.                                                                                                            |
 
-The state machine, the `Intl` date helpers, the copy, the class names and the stylesheet come from **`@nickkupriyanov/slotline-core`**, a dependency of this package. React users never import it directly — it exists so another binding can render the same widget against the same core.
+The controller, the derived view model, the reducer, the `Intl` date helpers, the copy, the class names and the stylesheet come from **`@nickkupriyanov/slotline-core`**, a dependency of this package. React users rarely import it directly — it exists so another binding renders the same flow against the same core.
 
 ## Adapter
 
@@ -48,25 +48,36 @@ The state machine, the `Intl` date helpers, the copy, the class names and the st
 import type { BookingAdapter } from '@nickkupriyanov/slotline-react';
 
 export const adapter: BookingAdapter = {
-  async getAvailability({ from, to, duration, timeZone, signal }) {
-    const res = await fetch(`/api/availability?from=${from}&to=${to}&duration=${duration}&tz=${timeZone}`, { signal });
+  async getAvailability({ from, to, duration, timeZone, context, signal }) {
+    const res = await fetch(
+      `/api/availability?from=${from}&to=${to}&duration=${duration}&tz=${timeZone}&schedule=${context.key}`,
+      { signal },
+    );
     if (!res.ok) throw new Error('Could not load availability');
     return res.json(); // [{ date: '2026-05-04', slotCount: 8 }, …]
   },
   async getSlots({ date, duration, timeZone, signal }) {
-    const res = await fetch(`/api/slots?date=${date}&duration=${duration}&tz=${timeZone}`, { signal });
+    const res = await fetch(`/api/slots?date=${date}&duration=${duration}&tz=${timeZone}`, {
+      signal,
+    });
     if (!res.ok) throw new Error('Could not load times');
-    return res.json(); // [{ start: '2026-05-04T07:15:00Z' }, …]
+    return res.json(); // [{ id: '2026-05-04#0915', start: '2026-05-04T07:15:00Z' }, …]
   },
-  async createBooking(request) {
-    const res = await fetch('/api/bookings', { method: 'POST', body: JSON.stringify(request) });
+  async createBooking({ slot, values, idempotencyKey }) {
+    const res = await fetch('/api/bookings', {
+      method: 'POST',
+      headers: { 'idempotency-key': idempotencyKey },
+      body: JSON.stringify({ slotId: slot.id, values }),
+    });
     if (!res.ok) throw new Error('Booking failed');
-    return res.json(); // { id, inviteeEmail? }
+    return res.json(); // { id, status: 'confirmed', invitation? }
   },
+  // Optional: a repeat of an unknown outcome stays safe for this long.
+  capabilities: { idempotentCreate: true, idempotencyRetentionMs: 86_400_000 },
 };
 ```
 
-`request` is `{ slot, date, duration, timeZone, details }`. Every query receives an `AbortSignal` tied to the widget's lifetime.
+`request` is `{ slot, date, duration, timeZone, context, values, idempotencyKey }`: every offer has a stable `id`, and `values` is the typed form payload. Every query receives an `AbortSignal` tied to the widget's lifetime.
 
 ## Theming
 
@@ -89,19 +100,26 @@ Set `theme="light" | "dark" | "system"` on the component; the resolved theme lan
 import { SlotlineProvider, useSlotlineContext } from '@nickkupriyanov/slotline-react';
 
 const Panel = () => {
-  const { state, monthLabel, actions, isDayBookable, monthGrid } = useSlotlineContext();
+  const { snapshot, actions } = useSlotlineContext();
+  const view = snapshot.view;
   return (
     <>
-      <h2>{monthLabel}</h2>
-      {monthGrid.filter(isDayBookable).map((day) => (
-        <button key={day} onClick={() => actions.selectDate(day)}>{day}</button>
-      ))}
+      <h2>{view.month.label}</h2>
+      {view.month.grid
+        .filter((day) => view.days[day]?.bookable)
+        .map((day) => (
+          <button key={day} onClick={() => actions.selectDate(day)}>
+            {day}
+          </button>
+        ))}
     </>
   );
 };
 
 export const Custom = () => (
-  <SlotlineProvider adapter={adapter} theme="dark"><Panel /></SlotlineProvider>
+  <SlotlineProvider adapter={adapter} theme="dark">
+    <Panel />
+  </SlotlineProvider>
 );
 ```
 

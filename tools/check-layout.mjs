@@ -24,21 +24,26 @@ const url = process.argv[2] ?? 'http://localhost:4173/gallery.html';
 
 const PROBE = `
 (async () => {
-  const steps = ['calendar', 'slots', 'details', 'booked'];
   const width = (element) => Math.round(element.getBoundingClientRect().width * 100) / 100;
-  const items = [...document.querySelectorAll('.gallery__item')];
-  if (items.length !== 4) return { error: 'expected 4 gallery items, got ' + items.length };
+  // The gallery marks its cases; the check reads them instead of counting figures, so
+  // a new case never means editing the check and no number of steps is assumed.
+  const items = [...document.querySelectorAll('[data-sl-case]')];
+  if (items.length === 0) return { error: 'no marked gallery cases' };
 
-  const measured = items.map((item, index) => {
+  const measured = items.map((item) => {
     const card = item.querySelector('.sl-card');
     return {
-      step: steps[index],
+      step: item.getAttribute('data-sl-step'),
+      layout: item.getAttribute('data-sl-layout') || 'compact',
       width: width(card),
       expected: width(item.querySelector('.sl-root')),
       overflowX: card.scrollWidth > Math.ceil(width(card)),
     };
   });
 
+  // A layout has one width; different layouts are allowed to differ, which is the
+  // whole point of the adaptive layout.
+  const compact = measured.find((entry) => entry.layout === 'compact') || measured[0];
   const first = items[0];
   const previous = first.style.width;
   first.style.width = '320px';
@@ -53,13 +58,18 @@ const PROBE = `
 
 const run = (args) =>
   new Promise((done, fail) => {
-    const child = spawn(process.execPath, args, { cwd: root, stdio: ['ignore', 'pipe', 'inherit'] });
+    const child = spawn(process.execPath, args, {
+      cwd: root,
+      stdio: ['ignore', 'pipe', 'inherit'],
+    });
     let stdout = '';
     child.stdout.on('data', (chunk) => {
       stdout += chunk;
     });
     child.on('error', fail);
-    child.on('close', (code) => (code === 0 ? done(stdout) : fail(new Error(`probe exited ${code}`))));
+    child.on('close', (code) =>
+      code === 0 ? done(stdout) : fail(new Error(`probe exited ${code}`)),
+    );
   });
 
 const stdout = await run([
@@ -82,16 +92,25 @@ if (report.error) {
   process.exit(1);
 }
 
-const widths = report.measured.map((entry) => entry.width);
-const unique = [...new Set(widths)];
 const failures = [];
 
-if (unique.length !== 1) {
-  failures.push(
-    `steps render at different widths: ${report.measured
-      .map((entry) => `${entry.step} ${entry.width}px`)
-      .join(', ')}`,
-  );
+// Widths are grouped by layout: every case of one layout renders at one width, and
+// a different layout may choose another.
+const byLayout = new Map();
+for (const entry of report.measured) {
+  const list = byLayout.get(entry.layout) ?? [];
+  list.push(entry);
+  byLayout.set(entry.layout, list);
+}
+for (const [layout, entries] of byLayout) {
+  const widths = [...new Set(entries.map((entry) => entry.width))];
+  if (widths.length !== 1) {
+    failures.push(
+      `${layout} cases render at different widths: ${entries
+        .map((entry) => `${entry.step} ${entry.width}px`)
+        .join(', ')}`,
+    );
+  }
 }
 for (const entry of report.measured) {
   if (entry.overflowX) failures.push(`${entry.step} overflows horizontally`);
@@ -102,11 +121,15 @@ for (const entry of report.measured) {
 if (report.narrowParent !== 320) {
   failures.push(`320px parent → ${report.narrowParent}px widget`);
 }
-if (report.wideParent !== unique[0]) {
-  failures.push(`1000px parent → ${report.wideParent}px widget (expected ${unique[0]}px)`);
+if (report.wideParent !== report.measured[0].expected) {
+  failures.push(
+    `1000px parent → ${report.wideParent}px widget (expected ${report.measured[0].expected}px)`,
+  );
 }
 
-console.log(`steps:    ${report.measured.map((e) => `${e.step} ${e.width}px`).join('  ·  ')}`);
+console.log(
+  `cases:    ${report.measured.map((e) => `${e.step}/${e.layout} ${e.width}px`).join('  ·  ')}`,
+);
 console.log(`parents:  320px → ${report.narrowParent}px   1000px → ${report.wideParent}px`);
 
 if (failures.length > 0) {

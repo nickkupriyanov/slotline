@@ -1,12 +1,20 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 import type {
+  AvailabilityAdapter,
   BookingAdapter,
+  BookingChangeMetadata,
+  BookingContext,
+  BookingError,
+  BookingErrorContext,
   BookingRequest,
   BookingResult,
   BuiltInLocale,
+  DefaultBookingValues,
+  InitialBookingAttempt,
   SlotlineClassSlot,
   SlotlineMessages,
   SlotlineTheme,
+  TimeFormat,
 } from '@nickkupriyanov/slotline-core';
 
 /**
@@ -22,19 +30,30 @@ export type * from '@nickkupriyanov/slotline-core';
 /*  Component props                                                            */
 /* -------------------------------------------------------------------------- */
 
-export interface SlotlineProps {
-  /** Availability + booking persistence. See {@link BookingAdapter}. */
-  adapter: BookingAdapter;
+/** Component props. `TValues` is inferred from the adapter, so a custom form keeps its own type. */
+export interface SlotlineProps<TValues = DefaultBookingValues> {
+  /**
+   * The adapter the flow works against.
+   *
+   * A `selection` needs availability and slots; a `booking` also persists them, and
+   * the controller enforces the pairing. Typing the two shapes loosely here keeps
+   * the props readable for the common booking case — an application that selects
+   * only never has to write a `createBooking` stub.
+   */
+  adapter: BookingAdapter<TValues> | AvailabilityAdapter<TValues>;
   /** Duration options in minutes. Default: `[15, 30, 60]`. */
   durations?: number[];
   /** Controlled duration, in minutes. */
   duration?: number;
   /** Uncontrolled initial duration. Default: first entry of `durations`. */
   defaultDuration?: number;
-  /** Called whenever the user picks a different duration. */
-  onDurationChange?: (duration: number) => void;
+  /** Called whenever the duration changes, however it changed. */
+  onDurationChange?: (duration: number, metadata: BookingChangeMetadata) => void;
   /** IANA time zone used for every date and time rendered. Default: the browser zone. */
+  /** IANA time zone used for every date and time rendered, and for calendar queries. */
   timeZone?: string;
+  /** Uncontrolled initial time zone. Default: the browser zone. */
+  defaultTimeZone?: string;
   /** Built-in locale (`en`, `ru`) or any tag understood by `Intl`. Default: browser. */
   locale?: BuiltInLocale | (string & {});
   /** Per-string overrides merged on top of the locale defaults. */
@@ -49,13 +68,31 @@ export interface SlotlineProps {
   maxDate?: string | Date;
   /** First column of the calendar. `0` = Sunday (default), `1` = Monday. */
   weekStartsOn?: 0 | 1;
+  /** `24h` (default) or a 12-hour cycle. */
+  timeFormat?: TimeFormat;
+  /** Uncontrolled initial hour cycle. */
+  defaultTimeFormat?: TimeFormat;
+  /** Called when the hour cycle changes. */
+  onTimeFormatChange?: (timeFormat: TimeFormat, metadata: BookingChangeMetadata) => void;
+  /** The schedule the widget works against. Default: a single implicit one. */
+  context?: BookingContext;
+  /** Called when the schedule changes. */
+  onContextChange?: (context: BookingContext, metadata: BookingChangeMetadata) => void;
+  /**
+   * An attempt the application restored after a reload. It opens on the attempt
+   * screen, resolved, so nothing is repeated by accident.
+   */
+  attempt?: InitialBookingAttempt | null;
+  /** Asks the application to look up the outcome of an unresolved attempt. */
+  onCheckStatus?: () => void;
   /**
    * Called after the adapter persisted the booking — even when the user has
-   * already moved on, in which case the UI does not jump to the confirmation.
+   * already moved on, in which case the UI does not jump to the confirmation. An
+   * exception thrown here never turns a created booking into a failure.
    */
-  onBooked?: (result: BookingResult, request: BookingRequest) => void;
-  /** Called on any adapter failure; the widget also renders the message inline. */
-  onError?: (error: Error) => void;
+  onBooked?: (result: BookingResult, request: BookingRequest<TValues>) => void;
+  /** Called on any adapter failure, with the phase it happened in. */
+  onError?: (error: BookingError, context: BookingErrorContext) => void;
   /** Renders a back button on the first step that calls this instead of leaving it out. */
   onDismiss?: () => void;
   /** Extra class on the outermost element. */
@@ -70,9 +107,9 @@ export interface SlotlineProps {
   animations?: AnimationKit;
 }
 
-export interface SlotlineProviderProps extends SlotlineProps {
+export type SlotlineProviderProps<TValues = DefaultBookingValues> = SlotlineProps<TValues> & {
   children: ReactNode;
-}
+};
 
 /* -------------------------------------------------------------------------- */
 /*  Animation kit                                                              */
