@@ -39,6 +39,17 @@ export interface BookingConfigInput {
   minDate?: string | Date;
   maxDate?: string | Date;
   context?: BookingContext;
+  /**
+   * The time zones the built-in selector offers, in the application's order.
+   *
+   * Without it the selector falls back to what the runtime supports, plus UTC and the
+   * current zone — and to just those two where the runtime cannot enumerate them.
+   */
+  timeZones?: readonly string[];
+  /** Whether the built-in selector is offered at all. Default: `false`. */
+  showTimeZoneSelector?: boolean;
+  /** Whether the built-in 12/24 switch is offered at all. Default: `false`. */
+  showTimeFormatSelector?: boolean;
   fields?: readonly BookingFieldConfig[];
   validateValues?(values: BookingValues): Record<string, string> | undefined;
   capabilities?: BookingCapabilities;
@@ -62,6 +73,9 @@ export interface BookingConfig {
   /** Latest selectable day, `YYYY-MM-DD` in `timeZone`. */
   maxDate?: string;
   context: BookingContext;
+  timeZones: readonly string[];
+  showTimeZoneSelector: boolean;
+  showTimeFormatSelector: boolean;
   fields: ResolvedBookingField[];
   validateValues?(values: BookingValues): Record<string, string> | undefined;
   capabilities?: BookingCapabilities;
@@ -105,6 +119,9 @@ export function resolveBookingConfig(input: BookingConfigInput = {}): BookingCon
     context: input.context ?? DEFAULT_BOOKING_CONTEXT,
     fields: resolveBookingFields(input.fields, messages),
     ...(input.validateValues ? { validateValues: input.validateValues } : {}),
+    timeZones: input.timeZones ?? [],
+    showTimeZoneSelector: input.showTimeZoneSelector ?? false,
+    showTimeFormatSelector: input.showTimeFormatSelector ?? false,
     ...(input.capabilities ? { capabilities: input.capabilities } : {}),
     ...(input.title === undefined ? {} : { title: input.title }),
     ...(input.defaultValues ? { defaultValues: input.defaultValues } : {}),

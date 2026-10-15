@@ -17,7 +17,15 @@
   /* Widget width. It is a hard width, not a hint: every step renders at
      exactly this size (or 100% of a narrower parent). */
   --sl-width: 400px;
-  --sl-slot-columns: 3;
+  /* The width of the explicit adaptive layout. Both widths are clamped by the
+     parent, so a narrow panel still fits. */
+  --sl-width-adaptive: 800px;
+  /* How many offers sit in a row. Leaving it unset lets the container decide;
+     setting it wins over the container queries. */
+  /* --sl-slot-columns: 3; */
+  /* A maximum height for the widget. `none` grows with the content; anything else
+     makes the middle area scroll, with the actions still reachable. */
+  --sl-max-height: none;
 
   /* Type ------------------------------------------------------------------- */
   --sl-font-family:

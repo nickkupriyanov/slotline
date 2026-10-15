@@ -57,6 +57,7 @@ const STATES: Array<{ target: Target; caption: string; step: string; layout: str
   { target: 'time', caption: '2 · slots', step: 'time', layout: 'compact' },
   { target: 'details', caption: '3 · details', step: 'details', layout: 'compact' },
   { target: 'confirmed', caption: '4 · booked', step: 'confirmed', layout: 'compact' },
+  { target: 'time', caption: '5 · slots, adaptive', step: 'time', layout: 'adaptive' },
 ];
 
 function Gallery() {
@@ -81,6 +82,7 @@ function Gallery() {
             adapter={createMockAdapter({ horizonDays: 90, latency: 0 })}
             theme={theme}
             locale="en"
+            layout={layout === 'adaptive' ? 'adaptive' : 'compact'}
           >
             <SlotlineView />
             <AutoDrive target={target} />

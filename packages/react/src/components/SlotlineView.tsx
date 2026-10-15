@@ -2,17 +2,29 @@ import { useEffect, useRef } from 'react';
 import { useClassNames, useComponents, useFlow, useUI } from '../context';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { CalendarStep } from './CalendarStep';
+import { Controls } from './Controls';
 import { DetailsStep } from './DetailsStep';
 import { SlotsStep } from './SlotsStep';
 
 function StepBody() {
   const { snapshot, actions } = useFlow();
   const { Attempt, Confirmation } = useComponents();
+  const ui = useUI();
   const view = snapshot.view;
 
   switch (view.step) {
     case 'time':
-      return <SlotsStep />;
+      // The adaptive layout shows the calendar beside the offers. Below 720px of
+      // container width the pair is one column again, and the attribute does not
+      // change: the container decides, once.
+      return ui.layout === 'adaptive' ? (
+        <div className="sl-adaptive-pair">
+          <CalendarStep />
+          <SlotsStep />
+        </div>
+      ) : (
+        <SlotsStep />
+      );
     case 'details':
       return <DetailsStep />;
     case 'attempt':
@@ -69,6 +81,7 @@ export function SlotlineView() {
       className={cls('root', ui.className)}
       data-sl-theme={ui.theme}
       data-sl-step={view.step}
+      data-sl-layout={ui.layout}
       lang={ui.locale}
     >
       <div className={cls('card')} ref={cardRef}>
@@ -88,7 +101,15 @@ export function SlotlineView() {
           <Progress progress={view.progress} />
         </Header>
 
-        <div className={cls('panel')} ref={panelRef} tabIndex={-1}>
+        <Controls />
+
+        <div
+          className={cls('panel')}
+          ref={panelRef}
+          tabIndex={-1}
+          role="region"
+          aria-label={view.panelLabel}
+        >
           <Animations.Height>
             <Animations.StepHost stepKey={view.step} direction={view.direction}>
               <StepBody />

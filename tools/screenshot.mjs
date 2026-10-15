@@ -35,7 +35,7 @@ const out = args.get('out');
 const evaluate = args.get('eval');
 if (!url || (!out && !evaluate)) {
   console.error(
-    'usage: node tools/screenshot.mjs --url <url> [--out <file>] [--eval <expression>] [--width] [--height] [--wait] [--wait-for <selector>] [--scale]',
+    'usage: node tools/screenshot.mjs --url <url> [--out <file>] [--eval <expression>] [--width] [--height] [--wait] [--wait-for <selector>] [--scale] [--tab <count>]',
   );
   process.exit(1);
 }
@@ -45,6 +45,8 @@ const height = Number(args.get('height') ?? 900);
 const scale = Number(args.get('scale') ?? 2);
 const settleMs = Number(args.get('wait') ?? 600);
 const waitFor = args.get('wait-for');
+/** How many real Tab presses to make before evaluating: the focus trail. */
+const tabs = Number(args.get('tab') ?? 0);
 const port = Number(args.get('port') ?? 9333);
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
@@ -165,6 +167,43 @@ try {
     }
     // Let the entry animations finish before capturing.
     await sleep(700);
+  }
+
+  // Real Tab presses, recorded so a probe can see where focus went. Only a key event
+  // makes Chrome report :focus-visible, which is why this is not a `focus()` loop.
+  if (tabs > 0) {
+    await cdp.send('Runtime.evaluate', {
+      expression: 'window.__dshFocusTrail = []',
+      returnByValue: true,
+    });
+    for (let index = 0; index < tabs; index += 1) {
+      for (const type of ['rawKeyDown', 'keyUp']) {
+        await cdp.send('Input.dispatchKeyEvent', {
+          type,
+          key: 'Tab',
+          code: 'Tab',
+          windowsVirtualKeyCode: 9,
+          nativeVirtualKeyCode: 9,
+        });
+      }
+      await sleep(60);
+      await cdp.send('Runtime.evaluate', {
+        expression: [
+          '(() => {',
+          '  const element = document.activeElement;',
+          "  const root = document.querySelector('.sl-root');",
+          '  window.__dshFocusTrail.push({',
+          '    tag: element ? element.tagName : null,',
+          "    className: element ? String(element.className || '') : '',",
+          '    inWidget: !!(root && element && root.contains(element)),',
+          "    focusVisible: !!(element && element.matches && element.matches(':focus-visible')),",
+          '    visible: !!(element && element.getClientRects().length),',
+          '  });',
+          '})()',
+        ].join('\n'),
+        returnByValue: true,
+      });
+    }
   }
 
   if (evaluate) {

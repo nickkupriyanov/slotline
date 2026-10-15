@@ -48,6 +48,12 @@ export interface SlotlineComponentInputs<TValues = DefaultBookingValues> {
   defaultValues?: BookingValues;
   /** The application's own validation, on top of the field rules. */
   validateValues?: (values: BookingValues) => Record<string, string> | undefined;
+  /** The zones the built-in selector offers, in this order. */
+  timeZones?: readonly string[];
+  /** Whether the built-in time zone selector is offered. Default: `false`. */
+  showTimeZoneSelector?: boolean;
+  /** Whether the built-in 12/24 switch is offered. Default: `false`. */
+  showTimeFormatSelector?: boolean;
   /** Duration options in minutes. Default: `[15, 30, 60]`. */
   durations?: number[];
   /** Controlled duration, in minutes. */

@@ -16,7 +16,8 @@
       "@nickkupriyanov/slotline-angular": ["../../packages/angular/src/public-api.ts"],
       "@nickkupriyanov/slotline-core": ["../../packages/core/src/index.ts"],
       "@nickkupriyanov/slotline-core/dom": ["../../packages/core/src/dom/index.ts"],
-      "@nickkupriyanov/slotline-angular/forms": ["../../packages/angular/forms/src/public-api.ts"]
+      "@nickkupriyanov/slotline-angular/forms": ["../../packages/angular/forms/src/public-api.ts"],
+      "@slotline/example-server": ["../../tools/dev-server/adapter.ts"]
     }
   },
   "angularCompilerOptions": {

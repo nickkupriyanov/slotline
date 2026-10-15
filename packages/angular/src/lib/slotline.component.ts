@@ -37,6 +37,7 @@ import {
   cx,
   detectLocale,
   format,
+  formatTimeZoneName,
   monthKeyOf,
   resolveTimeZone,
   weekdayIndex,
@@ -146,6 +147,7 @@ function valueOfNumberInput(raw: string): number | string {
   standalone: true,
   imports: [NgTemplateOutlet],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '(document:keydown.escape)': 'closeControls()' },
   encapsulation: ViewEncapsulation.None,
   providers: [SlotlineService],
   styles: [],
@@ -154,6 +156,7 @@ function valueOfNumberInput(raw: string): number | string {
       [class]="cls('root')"
       [attr.data-sl-theme]="theme()"
       [attr.data-sl-step]="view().step"
+      [attr.data-sl-layout]="layout()"
       [attr.data-sl-disabled]="unavailable() ? 'true' : null"
       [attr.aria-disabled]="unavailable() ? 'true' : null"
       [attr.lang]="resolvedLocale()"
@@ -222,11 +225,106 @@ function valueOfNumberInput(raw: string): number | string {
           }
         </header>
 
-        <div [class]="cls('panel')" #panel tabindex="-1">
+        @if (view().timeZone.showSelector || view().timeFormat.showSelector) {
+          <div class="sl-controls">
+            @if (view().timeZone.showSelector) {
+              <div class="sl-control">
+                <button
+                  type="button"
+                  class="sl-control-button"
+                  aria-haspopup="listbox"
+                  [attr.aria-expanded]="controlsOpen()"
+                  (click)="toggleControls()"
+                >
+                  {{ copy().timeZoneLabel }}:
+                  <span class="sl-control-value">{{ view().timeZone.name }}</span>
+                </button>
+
+                @if (controlsOpen()) {
+                  <div class="sl-popover" role="dialog" [attr.aria-label]="copy().timeZoneLabel">
+                    <label class="sl-popover-search">
+                      <span class="sl-visually-hidden">{{ copy().timeZoneSearchLabel }}</span>
+                      <input
+                        type="search"
+                        [class]="cls('input')"
+                        [attr.placeholder]="copy().timeZoneSearchPlaceholder"
+                        [value]="zoneQuery()"
+                        (input)="zoneQuery.set($any($event.target).value)"
+                      />
+                    </label>
+
+                    @if (zoneMatches().length === 0) {
+                      <p class="sl-popover-empty">{{ copy().timeZoneNoResultsDescription }}</p>
+                    } @else {
+                      <ul
+                        class="sl-zone-list"
+                        role="listbox"
+                        [attr.aria-label]="copy().timeZoneSearchLabel"
+                      >
+                        @for (zone of zoneMatches(); track zone) {
+                          <li>
+                            <button
+                              type="button"
+                              role="option"
+                              class="sl-zone-option"
+                              [attr.aria-selected]="zone === view().timeZone.current"
+                              [attr.data-state]="
+                                zone === view().timeZone.current ? 'active' : 'idle'
+                              "
+                              (click)="actions.setTimeZone(zone); closeControls()"
+                            >
+                              <span>{{ zoneName(zone) }}</span>
+                              <span class="sl-zone-id">{{ zone }}</span>
+                            </button>
+                          </li>
+                        }
+                      </ul>
+                    }
+                  </div>
+                }
+              </div>
+            }
+
+            @if (view().timeFormat.showSelector) {
+              <div
+                class="sl-segmented"
+                role="radiogroup"
+                [attr.aria-label]="copy().timeFormatLabel"
+              >
+                @for (format of formats; track format) {
+                  <button
+                    type="button"
+                    role="radio"
+                    class="sl-segmented-option"
+                    [attr.aria-checked]="format === view().timeFormat.current"
+                    [attr.data-state]="format === view().timeFormat.current ? 'active' : 'idle'"
+                    (click)="actions.setTimeFormat(format)"
+                  >
+                    {{ formatLabel(format) }}
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <div
+          [class]="cls('panel')"
+          #panel
+          tabindex="-1"
+          role="region"
+          [attr.aria-label]="view().panelLabel"
+        >
           @switch (view().step) {
             @case ('time') {
-              <!-- Step 2 — the offers of the selected day. -->
-              <div class="sl-slots-step">
+              <!-- Step 2 — the offers of the selected day, and in the adaptive layout
+                   the calendar beside them. The container decides the columns. -->
+              <div class="sl-adaptive-pair">
+                @if (layout() === 'adaptive') {
+                  <ng-container [ngTemplateOutlet]="calendar" />
+                }
+                <div class="sl-adaptive-offers">
+                  <div class="sl-slots-step">
                 <div [class]="cls('slotsHeader')">
                   <span class="sl-slots-icon" aria-hidden="true">
                     <svg
@@ -339,6 +437,8 @@ function valueOfNumberInput(raw: string): number | string {
                     }
                   </div>
                 }
+                  </div>
+                </div>
               </div>
             }
 
@@ -764,146 +864,153 @@ function valueOfNumberInput(raw: string): number | string {
             }
 
             @default {
-              <div [class]="cls('calendar')" [attr.data-status]="view().month.status">
-                <div [class]="cls('calendarHeader')">
-                  <h3 [class]="cls('monthLabel')">{{ view().month.label }}</h3>
-                  <div class="sl-calendar-nav">
-                    <button
-                      type="button"
-                      [class]="cls('navButton')"
-                      [attr.aria-label]="copy().previousMonth"
-                      (click)="actions.previousMonth()"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="18"
-                        height="18"
-                        aria-hidden="true"
-                        focusable="false"
-                      >
-                        <path
-                          d="M14.5 5.5 8 12l6.5 6.5"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="1.8"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      [class]="cls('navButton')"
-                      [attr.aria-label]="copy().nextMonth"
-                      (click)="actions.nextMonth()"
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="18"
-                        height="18"
-                        aria-hidden="true"
-                        focusable="false"
-                      >
-                        <path
-                          d="M9.5 5.5 16 12l-6.5 6.5"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="1.8"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                <div [class]="cls('weekdays')">
-                  @for (label of view().month.weekdayHeaders; track $index; let position = $index) {
-                    <span [class]="cls('weekday')">
-                      <span aria-hidden="true">{{ label }}</span>
-                      <span class="sl-visually-hidden">
-                        {{ view().month.weekdayLongNames[position] }}
-                      </span>
-                    </span>
-                  }
-                </div>
-
-                @if (view().month.error; as monthError) {
-                  @if (part('error'); as errorTemplate) {
-                    <ng-container
-                      [ngTemplateOutlet]="part('error')"
-                      [ngTemplateOutletContext]="
-                        errorContext(monthError, () => actions.reloadAvailability())
-                      "
-                    />
-                  } @else {
-                    <div [class]="cls('error')" role="alert">
-                      <span>{{ monthError }}</span>
-                      <button
-                        type="button"
-                        class="sl-link-button"
-                        (click)="actions.reloadAvailability()"
-                      >
-                        {{ copy().retry }}
-                      </button>
-                    </div>
-                  }
-                }
-
-                <div
-                  [class]="cls('grid')"
-                  role="grid"
-                  [attr.aria-label]="copy().calendarLabel"
-                  [attr.aria-busy]="view().month.status === 'loading'"
-                  (keydown)="onGridKeydown($event)"
-                >
-                  @for (row of rows(); track row[0]; let rowIndex = $index) {
-                    <div class="sl-grid-row" role="row">
-                      @for (day of row; track day; let cellIndex = $index) {
-                        <button
-                          type="button"
-                          role="gridcell"
-                          [attr.data-day]="day"
-                          [tabindex]="day === focusTarget() ? 0 : -1"
-                          [attr.aria-selected]="dayCell(day)?.isSelected || null"
-                          [attr.aria-disabled]="dayCell(day)?.bookable ? null : true"
-                          [attr.aria-current]="dayCell(day)?.isToday ? 'date' : null"
-                          [attr.aria-label]="dayCell(day)?.label"
-                          [class]="
-                            cls(
-                              'day',
-                              dayCell(day)?.isOutside && 'is-outside',
-                              dayCell(day)?.isSelected && 'is-selected',
-                              dayCell(day)?.bookable && 'is-bookable'
-                            )
-                          "
-                          [style.--sl-index]="rowIndex * 7 + cellIndex"
-                          (click)="onDayClick(day)"
-                        >
-                          @if (part('dayContent'); as dayTemplate) {
-                            <ng-container
-                              [ngTemplateOutlet]="dayTemplate"
-                              [ngTemplateOutletContext]="dayContentContext(day)"
-                            />
-                          } @else {
-                            <span class="sl-day-number">{{ dayNumber(day) }}</span>
-                            <span
-                              [class]="cls('dayDot')"
-                              aria-hidden="true"
-                              [attr.data-visible]="dayCell(day)?.bookable ? true : null"
-                            ></span>
-                          }
-                        </button>
-                      }
-                    </div>
-                  }
-                </div>
-
-                <p class="sl-timezone">{{ view().time.zoneHint }}</p>
-              </div>
+              <ng-container [ngTemplateOutlet]="calendar" />
             }
           }
 
+          <!--
+            The month grid, in one place: the date step renders it, and so does the
+            adaptive layout beside the offers.
+          -->
+          <ng-template #calendar>
+  <div [class]="cls('calendar')" [attr.data-status]="view().month.status">
+                  <div [class]="cls('calendarHeader')">
+                    <h3 [class]="cls('monthLabel')">{{ view().month.label }}</h3>
+                    <div class="sl-calendar-nav">
+                      <button
+                        type="button"
+                        [class]="cls('navButton')"
+                        [attr.aria-label]="copy().previousMonth"
+                        (click)="actions.previousMonth()"
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="18"
+                          height="18"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path
+                            d="M14.5 5.5 8 12l6.5 6.5"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        [class]="cls('navButton')"
+                        [attr.aria-label]="copy().nextMonth"
+                        (click)="actions.nextMonth()"
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="18"
+                          height="18"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path
+                            d="M9.5 5.5 16 12l-6.5 6.5"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+  
+                  <div [class]="cls('weekdays')">
+                    @for (label of view().month.weekdayHeaders; track $index; let position = $index) {
+                      <span [class]="cls('weekday')">
+                        <span aria-hidden="true">{{ label }}</span>
+                        <span class="sl-visually-hidden">
+                          {{ view().month.weekdayLongNames[position] }}
+                        </span>
+                      </span>
+                    }
+                  </div>
+  
+                  @if (view().month.error; as monthError) {
+                    @if (part('error'); as errorTemplate) {
+                      <ng-container
+                        [ngTemplateOutlet]="part('error')"
+                        [ngTemplateOutletContext]="
+                          errorContext(monthError, () => actions.reloadAvailability())
+                        "
+                      />
+                    } @else {
+                      <div [class]="cls('error')" role="alert">
+                        <span>{{ monthError }}</span>
+                        <button
+                          type="button"
+                          class="sl-link-button"
+                          (click)="actions.reloadAvailability()"
+                        >
+                          {{ copy().retry }}
+                        </button>
+                      </div>
+                    }
+                  }
+  
+                  <div
+                    [class]="cls('grid')"
+                    role="grid"
+                    [attr.aria-label]="copy().calendarLabel"
+                    [attr.aria-busy]="view().month.status === 'loading'"
+                    (keydown)="onGridKeydown($event)"
+                  >
+                    @for (row of rows(); track row[0]; let rowIndex = $index) {
+                      <div class="sl-grid-row" role="row">
+                        @for (day of row; track day; let cellIndex = $index) {
+                          <button
+                            type="button"
+                            role="gridcell"
+                            [attr.data-day]="day"
+                            [tabindex]="day === focusTarget() ? 0 : -1"
+                            [attr.aria-selected]="dayCell(day)?.isSelected || null"
+                            [attr.aria-disabled]="dayCell(day)?.bookable ? null : true"
+                            [attr.aria-current]="dayCell(day)?.isToday ? 'date' : null"
+                            [attr.aria-label]="dayCell(day)?.label"
+                            [class]="
+                              cls(
+                                'day',
+                                dayCell(day)?.isOutside && 'is-outside',
+                                dayCell(day)?.isSelected && 'is-selected',
+                                dayCell(day)?.bookable && 'is-bookable'
+                              )
+                            "
+                            [style.--sl-index]="rowIndex * 7 + cellIndex"
+                            (click)="onDayClick(day)"
+                          >
+                            @if (part('dayContent'); as dayTemplate) {
+                              <ng-container
+                                [ngTemplateOutlet]="dayTemplate"
+                                [ngTemplateOutletContext]="dayContentContext(day)"
+                              />
+                            } @else {
+                              <span class="sl-day-number">{{ dayNumber(day) }}</span>
+                              <span
+                                [class]="cls('dayDot')"
+                                aria-hidden="true"
+                                [attr.data-visible]="dayCell(day)?.bookable ? true : null"
+                              ></span>
+                            }
+                          </button>
+                        }
+                      </div>
+                    }
+                  </div>
+  
+                  <p class="sl-timezone">{{ view().time.zoneHint }}</p>
+                </div>
+          </ng-template>
           <div class="sl-visually-hidden" role="status" aria-live="polite">
             {{ view().live.message }}
           </div>
@@ -972,6 +1079,47 @@ export class SlotlineComponent {
    * `compact` (default) keeps the card at `--sl-width`; `adaptive` uses
    * `--sl-width-adaptive` and lets container queries re-compose the content.
    */
+  readonly layout = input<'compact' | 'adaptive'>('compact');
+  /** The zones the built-in selector offers, in this order. */
+  readonly timeZones = input<SlotlineComponentInputs['timeZones']>(undefined);
+  /** Whether the built-in time zone selector is offered. Default: `false`. */
+  readonly showTimeZoneSelector = input(false);
+  /** Whether the built-in 12/24 switch is offered. Default: `false`. */
+  readonly showTimeFormatSelector = input(false);
+
+  /* -- the built-in controls ------------------------------------------------ */
+
+  protected readonly controlsOpen = signal(false);
+  protected readonly zoneQuery = signal('');
+
+  /** The zones matching what was typed, capped so a long list stays cheap. */
+  protected readonly zoneMatches = computed(() => {
+    const needle = this.zoneQuery().trim().toLowerCase();
+    const zones = needle
+      ? this.view().timeZone.options.filter((zone) => zone.toLowerCase().includes(needle))
+      : this.view().timeZone.options;
+    return zones.slice(0, 60);
+  });
+
+  protected readonly formats: TimeFormat[] = ['12h', '24h'];
+
+  protected formatLabel(format: TimeFormat): string {
+    return format === '12h' ? this.copy().timeFormat12HourLabel : this.copy().timeFormat24HourLabel;
+  }
+
+  /** A readable name for a zone, as the zone selector shows it. */
+  protected zoneName(zone: string): string {
+    return formatTimeZoneName(zone, this.resolvedLocale(), new Date()) ?? zone;
+  }
+
+  protected toggleControls(): void {
+    this.zoneQuery.set('');
+    this.controlsOpen.update((open) => !open);
+  }
+
+  protected closeControls(): void {
+    this.controlsOpen.set(false);
+  }
   /** The built-in form's fields, in display order. */
   readonly fields = input<SlotlineComponentInputs['fields']>(undefined);
   /** Controlled form values. */
@@ -1356,6 +1504,9 @@ export class SlotlineComponent {
         ...(this.context() === undefined ? {} : { context: this.context() }),
         ...(this.formMode() === undefined ? {} : { formMode: this.formMode() }),
         ...(this.fields() === undefined ? {} : { fields: this.fields() }),
+        ...(this.timeZones() === undefined ? {} : { timeZones: this.timeZones() }),
+        ...(this.showTimeZoneSelector() ? { showTimeZoneSelector: true } : {}),
+        ...(this.showTimeFormatSelector() ? { showTimeFormatSelector: true } : {}),
         ...(this.validateValues() === undefined ? {} : { validateValues: this.validateValues() }),
       },
       inputs,

@@ -65,10 +65,13 @@ export interface SlotlineUIContextValue {
   theme: Exclude<SlotlineTheme, 'system'>;
   /** Parts the application replaced; anything absent falls back to the default. */
   components?: SlotlineComponents;
+  /** The layout the component asked for. */
+  layout: 'compact' | 'adaptive';
 }
 
 export const UIContext = createContext<SlotlineUIContextValue>({
   animations: cssAnimations,
+  layout: 'compact',
   autoFocus: false,
   trapFocus: false,
   canDismiss: false,

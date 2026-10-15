@@ -7,6 +7,7 @@ import {
   type BookingResult,
 } from '@nickkupriyanov/slotline-react';
 import { Slotline as MotionSlotline } from '@nickkupriyanov/slotline-react/motion';
+import { createExampleHttpAdapter } from '@slotline/example-server';
 import { SelectionFormExample } from './form-example';
 import { ServicesExample } from './services-example';
 import '@nickkupriyanov/slotline-react/styles.css';
@@ -48,6 +49,8 @@ const ACCENTS = {
   }),
 } satisfies Record<string, CSSProperties>;
 
+const EXAMPLE_SERVER_URL = 'http://127.0.0.1:8787';
+
 const TIME_ZONES = ['auto', 'Europe/Berlin', 'Europe/Lisbon', 'America/New_York', 'Asia/Tokyo'];
 
 interface LogEntry {
@@ -64,25 +67,38 @@ export function App() {
   const [animations, setAnimations] = useState<'css' | 'motion'>('css');
   const [surface, setSurface] = useState<'inline' | 'modal'>('inline');
   const [log, setLog] = useState<LogEntry[]>([]);
+  // `?data=server&drop=1` opens the playground on the teaching server.
+  const query = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
+  const [dataSource, setDataSource] = useState<'mock' | 'server'>(
+    query.get('data') === 'server' ? 'server' : 'mock',
+  );
+  const [dropAnswer, setDropAnswer] = useState(query.get('drop') === '1');
+
   const resolvedTimeZone = timeZone === 'auto' ? undefined : timeZone;
 
+  /**
+   * The built-in mock by default, so the playground works from a static build, and
+   * the teaching server — the same one the Angular playground talks to — on demand.
+   */
   const adapter = useMemo(
     () =>
-      createMockAdapter({
-        timeZone: resolvedTimeZone,
-        horizonDays: 90,
-        // What a real backend returns with a created record: the playground shows
-        // the confirmation whole, including the links the application own.
-        resultExtras: {
-          location: 'Studio 2, Torstraße 14',
-          instructions: 'Ring the bell twice and ask for Ann.',
-          joinUrl: 'https://meet.example.com/slotline-demo',
-          calendarUrl: 'https://calendar.example.com/slotline-demo.ics',
-          rescheduleUrl: 'https://app.example.com/bookings/demo/reschedule',
-          cancelUrl: 'https://app.example.com/bookings/demo/cancel',
-        },
-      }),
-    [resolvedTimeZone],
+      dataSource === 'server'
+        ? createExampleHttpAdapter({ baseUrl: EXAMPLE_SERVER_URL, dropResponse: dropAnswer })
+        : createMockAdapter({
+            timeZone: resolvedTimeZone,
+            horizonDays: 90,
+            // What a real backend returns with a created record: the playground shows
+            // the confirmation whole, including the links the application own.
+            resultExtras: {
+              location: 'Studio 2, Torstraße 14',
+              instructions: 'Ring the bell twice and ask for Ann.',
+              joinUrl: 'https://meet.example.com/slotline-demo',
+              calendarUrl: 'https://calendar.example.com/slotline-demo.ics',
+              rescheduleUrl: 'https://app.example.com/bookings/demo/reschedule',
+              cancelUrl: 'https://app.example.com/bookings/demo/cancel',
+            },
+          }),
+    [dataSource, dropAnswer, resolvedTimeZone],
   );
 
   const Widget = animations === 'motion' ? MotionSlotline : Slotline;
@@ -95,6 +111,8 @@ export function App() {
       {...(resolvedTimeZone ? { timeZone: resolvedTimeZone } : {})}
       durations={[15, 30, 60]}
       defaultDuration={15}
+      showTimeZoneSelector
+      showTimeFormatSelector
       {...(surface === 'modal' ? { autoFocus: true, trapFocus: true } : {})}
       onBooked={(result, request) =>
         setLog((entries) => [{ id: Date.now(), request, result }, ...entries].slice(0, 4))
@@ -149,6 +167,27 @@ export function App() {
             ))}
           </select>
         </Field>
+        <Field label="Data">
+          <select
+            value={dataSource}
+            onChange={(event) => setDataSource(event.target.value as 'mock' | 'server')}
+          >
+            <option value="mock">built-in mock</option>
+            <option value="server">teaching server</option>
+          </select>
+        </Field>
+        {dataSource === 'server' ? (
+          <Field label="Answer">
+            <label className="page__check">
+              <input
+                type="checkbox"
+                checked={dropAnswer}
+                onChange={(event) => setDropAnswer(event.target.checked)}
+              />
+              lose it
+            </label>
+          </Field>
+        ) : null}
         <Field label="Animations">
           <select
             value={animations}
@@ -168,6 +207,16 @@ export function App() {
           </select>
         </Field>
       </section>
+
+      {dataSource === 'server' ? (
+        <p className="page__hint">
+          Talking to <code>{EXAMPLE_SERVER_URL}</code>. Start it with{' '}
+          <code>node tools/dev-server/server.mjs</code>. With “lose it” on, the record is created
+          and the reply never arrives: the widget shows the attempt screen, and resolving it means
+          asking the server about the key of that attempt — see the Angular playground, which does
+          exactly that through the public service.
+        </p>
+      ) : null}
 
       <main className="page__main">
         <div className={surface === 'modal' ? 'surface surface--modal' : 'surface'}>

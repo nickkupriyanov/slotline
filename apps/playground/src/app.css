@@ -335,3 +335,22 @@ body {
   font-size: 11px;
   opacity: 0.7;
 }
+
+/* The teaching-server hint and the small inline checkbox. */
+.page__hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.page__hint code {
+  font-size: 12px;
+}
+
+.page__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: none;
+  letter-spacing: normal;
+}
