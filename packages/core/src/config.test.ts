@@ -17,6 +17,8 @@ describe('resolveBookingConfig', () => {
     // host: a binding applies the browser preference after mounting instead.
     expect(config.locale).toBe(FALLBACK_LOCALE);
     expect(config.timeZone).toBe(FALLBACK_TIME_ZONE);
+    expect(config.mode).toBe('booking');
+    expect(config.formMode).toBe('collect');
     expect(config.timeFormat).toBe(DEFAULT_TIME_FORMAT);
     expect(config.weekStartsOn).toBe(0);
     expect(config.durationOptions).toEqual([...DEFAULT_DURATION_OPTIONS]);
@@ -28,6 +30,8 @@ describe('resolveBookingConfig', () => {
 
   it('keeps everything the application passed', () => {
     const config = resolveBookingConfig({
+      mode: 'selection',
+      formMode: 'skip',
       locale: 'ru',
       timeZone: 'Europe/Berlin',
       timeFormat: '12h',
@@ -41,6 +45,8 @@ describe('resolveBookingConfig', () => {
     });
 
     expect(config).toMatchObject({
+      mode: 'selection',
+      formMode: 'skip',
       locale: 'ru',
       timeZone: 'Europe/Berlin',
       timeFormat: '12h',

@@ -57,20 +57,29 @@ function useBrowserDefaults(): { locale: string; timeZone: string } | null {
 
 type BrowserDefaults = { locale: string; timeZone: string } | null;
 
-/** Builds the controller's options from the props. */
+/**
+ * Builds the controller's options for the mode the application asked for.
+ *
+ * The controller takes a discriminated union — a selection cannot be handed a
+ * booking adapter it would never call — while the props keep one loose field, so
+ * the pairing is narrowed here, where the mode is known.
+ */
 function optionsOf<TValues>(
   props: SlotlineProps<TValues>,
   browser: BrowserDefaults,
 ): BookingControllerOptions<TValues> {
-  return {
-    adapter: adapterOf(props) as BookingAdapter<TValues>,
+  const base = {
     config: configOf(props, browser),
     inputs: inputsOf(props, browser),
     ...(props.attempt == null ? {} : { initialAttempt: props.attempt }),
   };
+
+  return props.mode === 'selection'
+    ? { mode: 'selection', adapter: adapterOf(props) as AvailabilityAdapter<TValues>, ...base }
+    : { mode: 'booking', adapter: adapterOf(props) as BookingAdapter<TValues>, ...base };
 }
 
-/** The adapter the widget works against. */
+/** The adapter the current mode needs; the controller rejects the wrong shape. */
 function adapterOf<TValues>(
   props: SlotlineProps<TValues>,
 ): BookingAdapter<TValues> | AvailabilityAdapter<TValues> {
@@ -91,6 +100,7 @@ function configOf<TValues>(
     ...(props.maxDate === undefined ? {} : { maxDate: props.maxDate }),
     ...(props.title === undefined ? {} : { title: props.title }),
     ...(props.context === undefined ? {} : { context: props.context }),
+    ...(props.formMode === undefined ? {} : { formMode: props.formMode }),
   };
 }
 
@@ -118,6 +128,9 @@ function inputsOf<TValues>(
   if (props.timeFormat !== undefined) inputs.timeFormat = props.timeFormat;
   else if (props.defaultTimeFormat !== undefined)
     inputs.defaultTimeFormat = props.defaultTimeFormat;
+
+  if (props.selection !== undefined) inputs.selection = props.selection;
+  else if (props.defaultSelection !== undefined) inputs.defaultSelection = props.defaultSelection;
 
   return inputs;
 }
@@ -155,6 +168,8 @@ export function useBookingController<TValues = DefaultBookingValues>(
           propsRef.current.onTimeFormatChange?.(timeFormat, metadata),
         onContextChange: (context, metadata) =>
           propsRef.current.onContextChange?.(context, metadata),
+        onSelectionChange: (selection, metadata) =>
+          propsRef.current.onSelectionChange?.(selection, metadata),
       },
     });
   }

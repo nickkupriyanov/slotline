@@ -31,6 +31,22 @@ import { observeVisibilityChange } from '@nickkupriyanov/slotline-core/dom';
 @Injectable()
 export class SlotlineService<TValues = DefaultBookingValues> {
   private controller: BookingController<TValues> | null = null;
+  /**
+   * A value written before the controller exists.
+   *
+   * A form control writes during its own initialisation, which happens before the
+   * widget's first change detection, so the value has to be remembered and handed
+   * over as the controller's initial selection.
+   */
+  private pendingSelection: BookingSelection | undefined;
+  /**
+   * Whether a form has written a selection at all.
+   *
+   * A form writes `null` first, and that write is what makes the flow controlled:
+   * the widget then reports proposals instead of applying them, exactly as it does
+   * for a `selection` input.
+   */
+  private selectionWritten = false;
   private unsubscribe: (() => void) | null = null;
   private stopVisibility: (() => void) | null = null;
 
@@ -80,6 +96,9 @@ export class SlotlineService<TValues = DefaultBookingValues> {
     this.updateCopy(options.config?.locale, options.config?.messages);
     const controller = createBookingController<TValues>({
       ...options,
+      ...(this.selectionWritten
+        ? { inputs: { ...options.inputs, selection: this.pendingSelection ?? null } }
+        : {}),
     });
     this.controller = controller;
     this.unsubscribe = controller.subscribe(() =>
@@ -94,6 +113,17 @@ export class SlotlineService<TValues = DefaultBookingValues> {
   updateCopy(locale: string | undefined, overrides: Partial<SlotlineMessages> | undefined): void {
     const next = resolveMessages(locale, overrides);
     if (next !== this.messagesSignal()) this.messagesSignal.set(next);
+  }
+
+  /**
+   * Applies a selection the application owns — what a `ControlValueAccessor`
+   * writes when the form value changes. The flow becomes controlled from here on,
+   * so a proposal is reported back instead of being applied.
+   */
+  setSelection(selection: BookingSelection | undefined): void {
+    this.selectionWritten = true;
+    this.pendingSelection = selection ?? null;
+    this.controller?.updateInputs({ selection: this.pendingSelection });
   }
 
   /** Starts the controller: from here on it loads availability and keeps time. */

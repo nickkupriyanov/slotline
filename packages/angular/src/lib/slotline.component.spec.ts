@@ -127,6 +127,90 @@ async function fillDetails<H = unknown>(fixture: ComponentFixture<H>): Promise<v
   await settle(fixture);
 }
 
+const SELECTION_NOW = Date.parse('2026-05-04T09:00:00Z');
+
+/** Availability only: a selection never needs a `createBooking`. */
+function availabilityOf(): AvailabilityAdapter {
+  const mock = createMockAdapter({
+    latency: 0,
+    horizonDays: 40,
+    timeZone: 'UTC',
+    busyRatio: 0,
+    now: () => SELECTION_NOW,
+  });
+
+  return {
+    getAvailability: (query) => mock.getAvailability(query),
+    getSlots: (query) => mock.getSlots(query),
+  };
+}
+
+@Component({
+  selector: 'sl-selection-host',
+  standalone: true,
+  imports: [SlotlineComponent],
+  template: `<sl-slotline
+    mode="selection"
+    [adapter]="adapter"
+    timeZone="UTC"
+    locale="en"
+    [minDate]="minDate"
+    [maxDate]="maxDate"
+    (selectionChange)="selectionChange.emit($event)"
+  />`,
+})
+class SelectionHostComponent {
+  readonly adapter = availabilityOf();
+  readonly minDate = '2026-05-04';
+  readonly maxDate = '2026-05-31';
+  readonly selectionChange = output<{
+    selection: BookingSelection;
+    metadata: BookingChangeMetadata;
+  }>();
+}
+
+describe('SlotlineComponent in selection mode', () => {
+  function mountSelection(): ComponentFixture<SelectionHostComponent> {
+    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection()] });
+    const fixture = TestBed.createComponent(SelectionHostComponent);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('stops at the offer and never opens a form', async () => {
+    const fixture = mountSelection();
+    await settle(fixture);
+
+    const cell = cells(fixture).find(
+      (candidate) => candidate.getAttribute('data-day') === '2026-05-04',
+    );
+    cell?.click();
+    await settle(fixture);
+
+    const offer = queryAll<HTMLElement>(fixture, '.sl-slot')[0];
+    offer?.click();
+    await settle(fixture);
+
+    expect(query(fixture, '.sl-root').getAttribute('data-sl-step')).toBe('time');
+    expect(fixture.nativeElement.querySelector('.sl-submit')).toBeNull();
+  });
+
+  it('reports the selection it proposes', async () => {
+    const fixture = mountSelection();
+    const changes: Array<{ selection: BookingSelection }> = [];
+    fixture.componentInstance.selectionChange.subscribe((event) => changes.push(event));
+
+    await settle(fixture);
+    const cell = cells(fixture).find(
+      (candidate) => candidate.getAttribute('data-day') === '2026-05-04',
+    );
+    cell?.click();
+    await settle(fixture);
+
+    expect(changes[0]?.selection).toEqual({ date: '2026-05-04', slot: null });
+  });
+});
+
 describe('SlotlineComponent', () => {
   it('renders the calendar with a single tab stop and unavailable days marked', async () => {
     const fixture = await mount();

@@ -50,6 +50,8 @@ export interface BookingSettingsView {
   /** Short zone name at the moment that matters, e.g. `GMT+2`. */
   timeZoneName?: string;
   timeFormat: TimeFormat;
+  mode: 'booking' | 'selection';
+  formMode: 'collect' | 'skip';
   contextKey: string;
 }
 
@@ -146,6 +148,11 @@ export interface BookingFormValueView {
 }
 
 export interface BookingFormView {
+  /**
+   * `true` when the application collects the values itself (`formMode: 'skip'`):
+   * the step renders the resume and a confirmation, and no field is editable here.
+   */
+  skipped: boolean;
   fields: ResolvedBookingField[];
   values: BookingValues;
   /** Errors from the field rules and `validateValues`, before merging. */
@@ -241,13 +248,16 @@ export function countSlots(day: DayAvailability | undefined): number | undefined
   return day.slots?.length;
 }
 
-/** The steps a user walks through. */
+/** The order of the steps a user walks through, before the mode is applied. */
 export const FLOW_STEP_ORDER: readonly SlotlineStep[] = ['date', 'time', 'details', 'confirmed'];
 
-/** The steps of this configuration. */
+/**
+ * The steps of this configuration. Selection mode has neither the form nor the
+ * confirmation; skipping the form still keeps the summary, which is the `details`
+ * step.
+ */
 export function userSteps(config: BookingConfig): SlotlineStep[] {
-  void config;
-  return [...FLOW_STEP_ORDER];
+  return config.mode === 'selection' ? ['date', 'time'] : [...FLOW_STEP_ORDER];
 }
 
 function progressOf(state: BookingState, config: BookingConfig): BookingProgressView {
@@ -416,6 +426,7 @@ export function deriveBookingView(
   const submitting = state.submitStatus === 'submitting';
 
   const form: BookingFormView = {
+    skipped: config.formMode === 'skip',
     fields: config.fields,
     values: state.values,
     validationErrors,
@@ -518,7 +529,8 @@ export function deriveBookingView(
       !submitting &&
       state.attempt === null &&
       // The confirmation is terminal: a new booking starts with "Book another".
-      state.step !== 'confirmed',
+      state.step !== 'confirmed' &&
+      config.mode === 'booking',
     canPickAnotherDay: slotsReady && state.slots.length === 0,
     canRetry: attempt?.retryAllowed === true,
     canCheckStatus: attempt?.canCheckStatus === true,
@@ -547,6 +559,8 @@ export function deriveBookingView(
       timeZone: config.timeZone,
       ...(timeZoneName === undefined ? {} : { timeZoneName }),
       timeFormat: config.timeFormat,
+      mode: config.mode,
+      formMode: config.formMode,
       contextKey: config.context.key,
     },
     progress,

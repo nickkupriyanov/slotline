@@ -113,13 +113,15 @@ export interface BookingControllerHandlers {
 }
 
 /**
- * Values the application may own. Whether each one is controlled is fixed when the
- * controller is created.
+ * Values the application may own. Each mode is fixed when the controller is
+ * created.
  *
  * `TValues` defaults to the built-in form payload and is inferred from the
  * adapter, so a custom form keeps its own type without extra annotations.
  */
 export interface BookingControllerInputs<TValues = DefaultBookingValues> {
+  selection?: BookingSelection;
+  defaultSelection?: BookingSelection;
   values?: TValues;
   defaultValues?: TValues;
   duration?: number;
@@ -131,7 +133,7 @@ export interface BookingControllerInputs<TValues = DefaultBookingValues> {
 }
 
 /** Everything except the values above, which travel through `inputs`. */
-export type BookingConfigOverrides = Omit<BookingConfigInput, 'timeZone' | 'timeFormat'>;
+export type BookingConfigOverrides = Omit<BookingConfigInput, 'mode' | 'timeZone' | 'timeFormat'>;
 
 interface BookingControllerBase<TValues> {
   config?: BookingConfigOverrides;
@@ -144,7 +146,8 @@ interface BookingControllerBase<TValues> {
 }
 
 export type BookingControllerOptions<TValues = DefaultBookingValues> =
-  BookingControllerBase<TValues> & { adapter: BookingAdapter<TValues> };
+  | (BookingControllerBase<TValues> & { mode?: 'booking'; adapter: BookingAdapter<TValues> })
+  | (BookingControllerBase<TValues> & { mode: 'selection'; adapter: AvailabilityAdapter });
 
 export interface BookingControllerActions {
   /** Picks a day. In controlled mode this proposes `{ date, slot: null }`. */
@@ -191,6 +194,9 @@ export interface BookingController<TValues = DefaultBookingValues> {
    * adapter may declare different capabilities, so the configuration is resolved
    * again.
    *
+   * Either shape is accepted: the mode was fixed when the controller was created,
+   * and that is where the pairing is enforced, so a selection never needs a booking
+   * method.
    */
   updateAdapter(adapter: AvailabilityAdapter<TValues> | BookingAdapter<TValues>): void;
   /** Configuration that is not a controlled value. */
@@ -324,6 +330,7 @@ function sameInputs(a: object, b: object): boolean {
 export function createBookingController<TValues = DefaultBookingValues>(
   options: BookingControllerOptions<TValues>,
 ): BookingController<TValues> {
+  const mode = options.mode ?? 'booking';
   let adapter = options.adapter as BookingAdapter<TValues>;
   const clock = options.clock ?? systemClock();
   const handlers = options.handlers ?? {};
@@ -333,6 +340,7 @@ export function createBookingController<TValues = DefaultBookingValues>(
   /* -- controlled or not: fixed now, for the life of this controller -------- */
 
   const controlled = {
+    selection: givenInputs.selection !== undefined,
     values: givenInputs.values !== undefined,
     duration: givenInputs.duration !== undefined,
     timeZone: givenInputs.timeZone !== undefined,
@@ -344,7 +352,7 @@ export function createBookingController<TValues = DefaultBookingValues>(
     if (isProduction() || warned.has(property)) return;
     warned.add(property);
     console.warn(
-      `[slotline] "${property}" appeared after the controller was created. That choice is fixed ` +
+      `[slotline] "${property}" appeared after the controller was created. The mode is fixed ` +
         `at creation, so the value is ignored: pass the controlled value from the first render ` +
         `or use the matching "default*" input.`,
     );
@@ -378,6 +386,7 @@ export function createBookingController<TValues = DefaultBookingValues>(
       ...(capabilities ? { capabilities } : {}),
       timeZone,
       timeFormat,
+      mode,
     });
   }
 
@@ -397,12 +406,18 @@ export function createBookingController<TValues = DefaultBookingValues>(
     : ((givenInputs.defaultValues ??
         config.defaultValues ??
         createEmptyValues(config.fields)) as unknown as BookingValues);
+  const initialSelection = controlled.selection
+    ? (givenInputs.selection ?? null)
+    : (givenInputs.defaultSelection ?? null);
+
   let lastEmittedSelection: BookingSelection = null;
 
   let state = createBookingState({
+    mode: config.mode,
     duration: initialDuration,
     month: monthKeyOf(clampDayKey(config.minDate ?? anchor.today, config.minDate, config.maxDate)),
     values: initialValues,
+    ...(initialSelection ? { selection: initialSelection } : {}),
     ...(options.initialAttempt ? { attempt: restoreAttempt(options.initialAttempt) } : {}),
   });
 
@@ -429,6 +444,8 @@ export function createBookingController<TValues = DefaultBookingValues>(
   let slotsAbort: AbortController | null = null;
 
   /** The last selection this controller proposed from freshly fetched data. */
+  let lastProposed: BookingSelection = null;
+
   function notify(): void {
     for (const listener of [...listeners]) listener();
   }
@@ -438,9 +455,12 @@ export function createBookingController<TValues = DefaultBookingValues>(
    *
    * A preset the calendar refuses, an offer invalidated by a duration change, a
    * selection dropped because availability moved: the application has to hear about
-   * all of them, or a controlled value and the widget disagree.
+   * all of them, or a controlled value and the widget disagree. Controlled
+   * selections report their proposals at the source instead, because in that mode
+   * nothing is applied here.
    */
   function notifySelection(): void {
+    if (controlled.selection) return;
     const current = selectionOf(state);
     if (sameSelection(current, lastEmittedSelection)) return;
     lastEmittedSelection = current;
@@ -779,6 +799,31 @@ export function createBookingController<TValues = DefaultBookingValues>(
     return true;
   }
 
+  function adoptSelection(next: BookingSelection): void {
+    if (sameSelection(selectionOf(state), next)) return;
+    if (!next) {
+      apply({ type: 'clearSelection', reason: 'reset' });
+      return;
+    }
+
+    // A value identical to what this controller just proposed came from a list it
+    // had already fetched, so it is confirmed; anything else has to be checked.
+    const echoed = next.slot !== null && sameSelection(lastProposed, next);
+    if (echoed) lastProposed = null;
+
+    reachMonthOf(next.date);
+    apply({
+      type: 'selectionPreset',
+      date: next.date,
+      slot: next.slot,
+      ...(next.slot === null ? {} : { status: echoed ? 'valid' : 'verifying' }),
+      reason: echoed ? 'slot-select' : 'availability-change',
+    });
+    if (next.slot && !withinLimits(next.date)) {
+      apply({ type: 'selectionRejected', reason: 'availability-change' });
+    }
+  }
+
   function adoptValues(next: TValues): void {
     const values = next as unknown as BookingValues;
     if (sameInputs(state.values, values)) return;
@@ -854,6 +899,11 @@ export function createBookingController<TValues = DefaultBookingValues>(
       warnOnce('values');
     }
 
+    if (controlled.selection) {
+      if (inputs.selection !== undefined) adoptSelection(inputs.selection);
+    } else if (inputs.selection !== undefined) {
+      warnOnce('selection');
+    }
     // `default*` values are initial by definition: changing them later must not
     // overwrite what the user has already entered.
   }
@@ -863,10 +913,18 @@ export function createBookingController<TValues = DefaultBookingValues>(
   function proposeSelection(next: BookingSelection, reason: SelectionChangeReason): void {
     if (sameSelection(selectionOf(state), next)) return;
 
+    if (controlled.selection) {
+      // Remember a proposal that came from a freshly fetched list: its echo can be
+      // accepted without a second round trip.
+      if (next?.slot && next.date === state.selectedDate) lastProposed = next;
+      handlers.onSelectionChange?.(next, metadata(reason));
+      return;
+    }
+
     if (!next) {
       apply({ type: 'clearSelection', reason });
     } else if (next.slot) {
-      apply({ type: 'selectSlot', slot: next.slot });
+      apply({ type: 'selectionPreset', date: next.date, slot: next.slot, status: 'valid', reason });
     } else {
       apply({ type: 'selectDate', date: next.date, reason });
     }
@@ -941,6 +999,10 @@ export function createBookingController<TValues = DefaultBookingValues>(
 
   const actions: BookingControllerActions = {
     selectDate(date) {
+      if (controlled.selection) {
+        proposeSelection({ date, slot: null }, 'date-select');
+        return;
+      }
       // Switching day keeps the flow as it is, and re-asks the adapter.
       apply({ type: 'selectDate', date, reason: 'date-select' });
     },
@@ -966,6 +1028,11 @@ export function createBookingController<TValues = DefaultBookingValues>(
     },
 
     clearSelection(reason = 'availability-change') {
+      lastProposed = null;
+      if (controlled.selection) {
+        handlers.onSelectionChange?.(null, metadata(reason));
+        return;
+      }
       apply({ type: 'clearSelection', reason });
       handlers.onSelectionChange?.(null, metadata(reason));
     },
@@ -991,6 +1058,9 @@ export function createBookingController<TValues = DefaultBookingValues>(
     },
 
     async submit() {
+      // Nothing to create: the flow ends at the offer, and the application owns it.
+      if (config.mode === 'selection') return;
+      if (mode !== 'booking') return;
       if (state.attempt && state.attempt.status === 'unknown') return;
       if (state.submitStatus === 'submitting') return;
 
@@ -1055,10 +1125,12 @@ export function createBookingController<TValues = DefaultBookingValues>(
     },
 
     reset() {
+      lastProposed = null;
       apply({
         type: 'reset',
         values: config.defaultValues ?? createEmptyValues(config.fields),
       });
+      if (controlled.selection) handlers.onSelectionChange?.(null, metadata('reset'));
       if (controlled.values) {
         handlers.onValuesChange?.(
           config.defaultValues ?? createEmptyValues(config.fields),

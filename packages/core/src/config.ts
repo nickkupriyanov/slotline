@@ -21,7 +21,14 @@ import type {
   TimeFormat,
 } from './types';
 
+export type BookingMode = 'booking' | 'selection';
+export type BookingFormMode = 'collect' | 'skip';
+
 export interface BookingConfigInput {
+  /** `booking` (default) creates a record; `selection` only reports a choice. */
+  mode?: BookingMode;
+  /** `collect` (default) renders the form; `skip` goes straight to the summary. */
+  formMode?: BookingFormMode;
   locale?: string;
   messages?: Partial<SlotlineMessages>;
   timeZone?: string;
@@ -40,6 +47,8 @@ export interface BookingConfigInput {
 }
 
 export interface BookingConfig {
+  mode: BookingMode;
+  formMode: BookingFormMode;
   locale: string;
   messages: SlotlineMessages;
   timeZone: string;
@@ -61,6 +70,8 @@ export interface BookingConfig {
 }
 
 export const DEFAULT_DURATION_OPTIONS: readonly number[] = [15, 30, 60];
+export const DEFAULT_MODE: BookingMode = 'booking';
+export const DEFAULT_FORM_MODE: BookingFormMode = 'collect';
 export const DEFAULT_TIME_FORMAT: TimeFormat = '24h';
 
 /** Deterministic fallbacks, replaced by a binding once it is running on the client. */
@@ -80,6 +91,8 @@ export function resolveBookingConfig(input: BookingConfigInput = {}): BookingCon
   const maxDate = normalizeDateInput(input.maxDate, timeZone);
 
   return {
+    mode: input.mode ?? DEFAULT_MODE,
+    formMode: input.formMode ?? DEFAULT_FORM_MODE,
     locale,
     messages,
     timeZone,

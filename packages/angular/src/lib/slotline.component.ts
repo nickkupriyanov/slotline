@@ -59,12 +59,14 @@ import {
   type TimeSlot,
 } from '@nickkupriyanov/slotline-core';
 import { trapFocus } from '@nickkupriyanov/slotline-core/dom';
+import { SLOTLINE_FORM_STATE } from './form-bridge';
 import { SlotlineService } from './slotline.service';
 import type {
   BookedEvent,
   ContextChangeEvent,
   DurationChangeEvent,
   FailedEvent,
+  SelectionChangeEvent,
   SlotlineComponentInputs,
   TimeFormatChangeEvent,
   TimeZoneChangeEvent,
@@ -78,6 +80,7 @@ const DAYS_PER_WEEK = 7;
 
 /** Every event the widget emits, keyed by output name. */
 export interface SlotlineOutputs {
+  selectionChange: SelectionChangeEvent;
   durationChange: DurationChangeEvent;
   timeZoneChange: TimeZoneChangeEvent;
   timeFormatChange: TimeFormatChangeEvent;
@@ -764,14 +767,31 @@ export class SlotlineComponent {
    * than making every consumer coerce it.
    */
   readonly adapter = input.required<SlotlineComponentInputs['adapter']>();
-  /** Renders the widget as unavailable. */
+  /** `selection` stops at the offer and never creates anything. */
+  readonly mode = input<SlotlineComponentInputs['mode']>('booking');
+  /** `skip` keeps only the resume and a confirmation; the application owns the values. */
+  readonly formMode = input<SlotlineComponentInputs['formMode']>(undefined);
+  /** Controlled selection: the offer the application owns. */
+  readonly selection = input<SlotlineComponentInputs['selection']>(undefined);
+  /** Uncontrolled initial selection, verified before it can be used. */
+  readonly defaultSelection = input<SlotlineComponentInputs['defaultSelection']>(undefined);
+  /** Renders the widget as unavailable; a form drives its own state through `/forms`. */
   readonly disabled = input(false);
   /**
    * `compact` (default) keeps the card at `--sl-width`; `adaptive` uses
    * `--sl-width-adaptive` and lets container queries re-compose the content.
    */
-  /** The widget is unavailable when the input says so. */
-  protected readonly unavailable = computed(() => this.disabled());
+  /**
+   * Present when a form owns this widget: `/forms` provides it on the same element.
+   * The value arrives before the controller exists, which is what makes the flow
+   * controlled from its first state.
+   */
+  private readonly formState = inject(SLOTLINE_FORM_STATE, { optional: true });
+
+  /** The widget is unavailable when the input or the form says so. */
+  protected readonly unavailable = computed(
+    () => this.disabled() || this.formState?.disabled() === true,
+  );
   /** Duration options in minutes. */
   readonly durations = input<number[] | undefined>(undefined);
   /** Controlled duration, in minutes. */
@@ -807,6 +827,7 @@ export class SlotlineComponent {
   /*  Outputs                                                                 */
   /* ------------------------------------------------------------------------ */
 
+  readonly selectionChange = output<SelectionChangeEvent>();
   readonly durationChange = output<DurationChangeEvent>();
   readonly timeZoneChange = output<TimeZoneChangeEvent>();
   readonly timeFormatChange = output<TimeFormatChangeEvent>();
@@ -920,6 +941,13 @@ export class SlotlineComponent {
       this.configureFromInputs();
     });
 
+    // A form's value changes outside the inputs, so it is followed separately.
+    // Re-supplying an equal selection costs nothing: the controller compares.
+    effect(() => {
+      this.formState?.value();
+      untracked(() => this.configureFromInputs());
+    });
+
     afterNextRender(() => {
       this.browserDefaults.set({ locale: detectLocale(), timeZone: resolveTimeZone() });
       if (this.autoFocus()) this.panel()?.focus();
@@ -982,10 +1010,22 @@ export class SlotlineComponent {
     else if (this.defaultTimeFormat() !== undefined)
       inputs.defaultTimeFormat = this.defaultTimeFormat();
 
+    if (this.formState) {
+      // A form's value is controlled by definition: it is handed over as the
+      // selection the widget starts from.
+      inputs.selection = this.formState.value();
+    } else if (this.selection() !== undefined) inputs.selection = this.selection();
+    else if (this.defaultSelection() !== undefined)
+      inputs.defaultSelection = this.defaultSelection();
+
     const locale = this.locale() ?? browser?.locale;
     const attempt = this.attempt() ?? undefined;
 
+    const mode = this.mode() ?? 'booking';
     this.service.configure({
+      // The suite narrows the pairing here: the two modes take different adapters,
+      // and a selection never reaches a booking method.
+      mode,
       adapter: this.adapter() as unknown as BookingAdapter<DefaultBookingValues>,
       config: {
         ...(locale === undefined ? {} : { locale }),
@@ -996,10 +1036,17 @@ export class SlotlineComponent {
         ...(this.maxDate() === undefined ? {} : { maxDate: this.maxDate() }),
         ...(this.title() === undefined ? {} : { title: this.title() }),
         ...(this.context() === undefined ? {} : { context: this.context() }),
+        ...(this.formMode() === undefined ? {} : { formMode: this.formMode() }),
       },
       inputs,
       ...(attempt === undefined ? {} : { initialAttempt: attempt }),
       handlers: {
+        onSelectionChange: (selection, metadata) => {
+          // A form owns the value: it hears the proposal here, writes it back, and
+          // the widget then applies what came back.
+          this.formState?.onProposal?.(selection);
+          this.selectionChange.emit({ selection, metadata });
+        },
         onDurationChange: (duration, metadata) => this.durationChange.emit({ duration, metadata }),
         onTimeZoneChange: (timeZone, metadata) => this.timeZoneChange.emit({ timeZone, metadata }),
         onTimeFormatChange: (timeFormat, metadata) =>

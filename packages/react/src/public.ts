@@ -120,6 +120,8 @@ export type { MockAdapterOptions, MockFailure } from '@nickkupriyanov/slotline-c
 export {
   DEFAULT_BOOKING_FIELDS,
   DEFAULT_DURATION_OPTIONS,
+  DEFAULT_FORM_MODE,
+  DEFAULT_MODE,
   DEFAULT_TIME_FORMAT,
   FALLBACK_LOCALE,
   FALLBACK_TIME_ZONE,
@@ -141,6 +143,7 @@ export type {
   BookingInvitation,
   BookingRequest,
   BookingResult,
+  BookingSelection,
   BookingTimeAnchor,
   BookingValues,
   DayAvailability,

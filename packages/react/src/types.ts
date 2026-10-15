@@ -2,12 +2,15 @@ import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 import type {
   AvailabilityAdapter,
   BookingAdapter,
+  BookingFormMode,
+  BookingMode,
   BookingChangeMetadata,
   BookingContext,
   BookingError,
   BookingErrorContext,
   BookingRequest,
   BookingResult,
+  BookingSelection,
   BuiltInLocale,
   DefaultBookingValues,
   InitialBookingAttempt,
@@ -41,6 +44,19 @@ export interface SlotlineProps<TValues = DefaultBookingValues> {
    * only never has to write a `createBooking` stub.
    */
   adapter: BookingAdapter<TValues> | AvailabilityAdapter<TValues>;
+  /** `selection` stops at the offer and never creates anything. Default: `booking`. */
+  mode?: BookingMode;
+  /**
+   * `skip` leaves the values to the application and keeps only the resume and an
+   * explicit confirmation. Default: `collect`.
+   */
+  formMode?: BookingFormMode;
+  /** Controlled selection: the offer the application owns. */
+  selection?: BookingSelection;
+  /** Uncontrolled initial selection, verified against availability before use. */
+  defaultSelection?: BookingSelection;
+  /** Called whenever the selection changes, however it changed. */
+  onSelectionChange?: (selection: BookingSelection, metadata: BookingChangeMetadata) => void;
   /** Duration options in minutes. Default: `[15, 30, 60]`. */
   durations?: number[];
   /** Controlled duration, in minutes. */

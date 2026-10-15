@@ -7,6 +7,7 @@ import {
   type SlotlineTheme,
 } from '@nickkupriyanov/slotline-angular';
 import { adapter as mockAdapter, unknownOutcomeAdapter } from './adapter';
+import { FormExample } from './form-example';
 import { Gallery } from './gallery';
 
 /**
@@ -15,7 +16,7 @@ import { Gallery } from './gallery';
  */
 @Component({
   selector: 'app-root',
-  imports: [SlotlineComponent, Gallery],
+  imports: [SlotlineComponent, Gallery, FormExample],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="page">
@@ -75,7 +76,9 @@ import { Gallery } from './gallery';
         />
       }
 
-      @if (!gallery()) {}
+      @if (!gallery()) {
+        <app-form-example />
+      }
 
       <section class="log">
         <h2>Events</h2>
