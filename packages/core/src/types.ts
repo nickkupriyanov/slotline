@@ -418,6 +418,17 @@ export interface SlotlineMessages {
   /* -- Invitation --------------------------------------------------------- */
 
   /** `{email}` → "Calendar invite sent to ann@example.com." */
+  /** Heading above the place of an in-person booking. */
+  confirmationLocationLabel: string;
+  /** Opens the meeting link the backend returned. */
+  confirmationJoinLabel: string;
+  /** Opens the calendar entry the backend returned. No ICS is generated here. */
+  confirmationAddToCalendarLabel: string;
+  /** Opens the application's own rescheduling interface. */
+  confirmationRescheduleLabel: string;
+  /** Opens the application's own cancellation interface. */
+  confirmationCancelLabel: string;
+
   invitationSentDescription: string;
   /** `{email}` → the invite is being sent. */
   invitationPendingDescription: string;

@@ -688,6 +688,69 @@ function valueOfNumberInput(raw: string): number | string {
                         <p>{{ invitation }}</p>
                       }
                     </div>
+                    @if (confirmation.location; as location) {
+                      <p class="sl-confirmation-place">
+                        <span class="sl-confirmation-place-label">
+                          {{ copy().confirmationLocationLabel }}
+                        </span>
+                        <span>{{ location }}</span>
+                      </p>
+                    }
+
+                    @if (confirmation.instructions; as instructions) {
+                      <p class="sl-confirmation-instructions">{{ instructions }}</p>
+                    }
+
+                    @if (
+                      confirmation.joinUrl ||
+                      confirmation.calendarUrl ||
+                      confirmation.rescheduleUrl ||
+                      confirmation.cancelUrl
+                    ) {
+                      <div class="sl-confirmation-actions">
+                        @if (confirmation.joinUrl; as joinUrl) {
+                          <a
+                            [class]="cls('submit')"
+                            [href]="joinUrl"
+                            target="_blank"
+                            rel="noreferrer noopener"
+                          >
+                            {{ copy().confirmationJoinLabel }}
+                          </a>
+                        }
+                        @if (confirmation.calendarUrl; as calendarUrl) {
+                          <a
+                            [class]="cls('secondaryButton')"
+                            [href]="calendarUrl"
+                            target="_blank"
+                            rel="noreferrer noopener"
+                          >
+                            {{ copy().confirmationAddToCalendarLabel }}
+                          </a>
+                        }
+                        @if (confirmation.rescheduleUrl; as rescheduleUrl) {
+                          <a
+                            [class]="cls('secondaryButton')"
+                            [href]="rescheduleUrl"
+                            target="_blank"
+                            rel="noreferrer noopener"
+                          >
+                            {{ copy().confirmationRescheduleLabel }}
+                          </a>
+                        }
+                        @if (confirmation.cancelUrl; as cancelUrl) {
+                          <a
+                            [class]="cls('secondaryButton')"
+                            [href]="cancelUrl"
+                            target="_blank"
+                            rel="noreferrer noopener"
+                          >
+                            {{ copy().confirmationCancelLabel }}
+                          </a>
+                        }
+                      </div>
+                    }
+
                     <button
                       type="button"
                       [class]="cls('secondaryButton')"
