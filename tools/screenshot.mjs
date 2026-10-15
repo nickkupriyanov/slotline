@@ -136,9 +136,9 @@ const chromeProcess = spawn(
 let cdp;
 try {
   await waitForHttp(`http://127.0.0.1:${port}/json/version`);
-  const target = await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' }).then(
-    (response) => response.json(),
-  );
+  const target = await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, {
+    method: 'PUT',
+  }).then((response) => response.json());
   cdp = await Cdp.attach(target.webSocketDebuggerUrl);
 
   await cdp.send('Page.enable');

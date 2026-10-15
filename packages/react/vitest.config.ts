@@ -7,13 +7,17 @@ import { defineConfig } from 'vitest/config';
  * its `src` instead of the (possibly stale or missing) `dist`.
  */
 const core = fileURLToPath(new URL('../core/src/index.ts', import.meta.url));
+const coreDom = fileURLToPath(new URL('../core/src/dom/index.ts', import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@nickkupriyanov/slotline-core': core,
-    },
+    // Order matters: a bare string alias replaces the prefix, which would turn the
+    // `/dom` subpath into `…/src/index.ts/dom`.
+    alias: [
+      { find: /^@nickkupriyanov\/slotline-core\/dom$/, replacement: coreDom },
+      { find: '@nickkupriyanov/slotline-core', replacement: core },
+    ],
   },
   test: {
     environment: 'jsdom',

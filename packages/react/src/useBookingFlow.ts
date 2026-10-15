@@ -1,469 +1,241 @@
 /**
- * The headless core of Slotline: state machine + data loading + validation.
- * `Slotline` is a thin view over this hook, and you can build your own UI on it.
+ * The React binding of the booking controller.
+ *
+ * The hook owns nothing but the lifecycle: it creates one controller per mounted
+ * widget, keeps it in step with the props, and subscribes with
+ * `useSyncExternalStore`. Everything the widget shows comes from the controller's
+ * snapshot, so React and Angular render the same derivation instead of each
+ * formatting dates their own way.
  */
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
-  addMonths,
-  buildMonthGrid,
-  clampDayKey,
-  compareDayKeys,
-  countSlots,
-  createFlowState,
-  dayKeyOf,
+  createBookingController,
   detectLocale,
-  endOf,
-  firstDayOfMonth,
-  flowReducer,
-  format,
-  formatFullDay,
-  formatMonthYear,
-  formatTime,
-  formatTimeZoneName,
-  hasErrors,
-  lastDayOfMonth,
-  monthKeyOf,
-  normalizeDateInput,
   resolveMessages,
   resolveTimeZone,
-  rotateToWeekStart,
-  shortWeekdayNames,
-  todayKey,
-  validateDetails,
-  visibleErrors,
-  weekdayNames,
-  type FieldErrors,
-  type FlowState,
+  type BookingConfigOverrides,
+  type AvailabilityAdapter,
+  type BookingAdapter,
+  type BookingController,
+  type BookingControllerInputs,
+  type BookingControllerOptions,
+  type BookingRequest,
+  type BookingSnapshot,
+  type DefaultBookingValues,
 } from '@nickkupriyanov/slotline-core';
-import { useControllableState } from './hooks/useControllableState';
+import { observeVisibilityChange } from '@nickkupriyanov/slotline-core/dom';
+import { cssAnimations } from './animations/css';
+import type { SlotlineUIContextValue, UseBookingFlowResult } from './context';
 import { useResolvedTheme } from './hooks/useResolvedTheme';
-import type {
-  SlotlineMessages,
-  SlotlineProps,
-  SlotlineStep,
-  SlotlineTheme,
-  BookingAdapter,
-  BookingRequest,
-  BookingResult,
-  DayAvailability,
-  TimeSlot,
-} from './types';
+import type { SlotlineProps } from './types';
 
-export interface UseBookingFlowResult {
-  state: FlowState;
-  /** Merged copy for the active locale. */
-  messages: SlotlineMessages;
-  /** Locale used for `Intl` formatting. */
-  locale: string;
-  timeZone: string;
-  /** Short zone hint, e.g. `GMT+2`. */
-  timeZoneName?: string;
-  theme: Exclude<SlotlineTheme, 'system'>;
-  /** Header title for the current step. */
-  title: string;
-  durations: number[];
-  weekStartsOn: 0 | 1;
-  minDate?: string;
-  maxDate?: string;
-  /** The 42 day keys of the visible month view. */
-  monthGrid: string[];
-  /** Short weekday headers, rotated to `weekStartsOn`. */
-  weekdayHeaders: string[];
-  /** Long weekday names for accessible headers, rotated to `weekStartsOn`. */
-  weekdayLongNames: string[];
-  monthLabel: string;
-  selectedDateLabel: string;
-  selectedTimeLabel: string;
-  durationLabel: string;
-  /** Availability for one day, if the adapter knows about it. */
-  availabilityOf: (dayKey: string) => DayAvailability | undefined;
-  isDayBookable: (dayKey: string) => boolean;
-  canGoBack: boolean;
-  fieldErrors: FieldErrors;
-  shownFieldErrors: FieldErrors;
-  /** `true` when the details form can be submitted. */
-  detailsValid: boolean;
-  actions: {
-    selectDate: (dayKey: string) => void;
-    selectSlot: (slot: TimeSlot) => void;
-    setDuration: (minutes: number) => void;
-    setDetails: (details: Partial<{ name: string; email: string; notes: string }>) => void;
-    /** Marks a field as touched so its validation message becomes visible. */
-    touchField: (field: 'name' | 'email') => void;
-    back: () => void;
-    submit: () => Promise<void>;
-    reset: () => void;
-    goToMonth: (monthKey: string) => void;
-    previousMonth: () => void;
-    nextMonth: () => void;
-    reloadAvailability: () => void;
-    reloadSlots: () => void;
+/** The flow's public shape, so consumers can keep importing it from the hook. */
+export type { UseBookingFlowResult } from './context';
+
+/**
+ * Browser language and zone, read once and applied *after* mounting. The first
+ * render — the one the server also produces — uses the deterministic fallbacks, so
+ * rendering and hydration agree and the widget then switches to what the visitor
+ * actually uses.
+ */
+let cachedBrowserDefaults: { locale: string; timeZone: string } | null = null;
+
+function readBrowserDefaults(): { locale: string; timeZone: string } {
+  cachedBrowserDefaults ??= { locale: detectLocale(), timeZone: resolveTimeZone() };
+  return cachedBrowserDefaults;
+}
+
+function useBrowserDefaults(): { locale: string; timeZone: string } | null {
+  const [defaults, setDefaults] = useState<{ locale: string; timeZone: string } | null>(null);
+
+  useEffect(() => {
+    setDefaults(readBrowserDefaults());
+  }, []);
+
+  return defaults;
+}
+
+type BrowserDefaults = { locale: string; timeZone: string } | null;
+
+/** Builds the controller's options from the props. */
+function optionsOf<TValues>(
+  props: SlotlineProps<TValues>,
+  browser: BrowserDefaults,
+): BookingControllerOptions<TValues> {
+  return {
+    adapter: adapterOf(props) as BookingAdapter<TValues>,
+    config: configOf(props, browser),
+    inputs: inputsOf(props, browser),
+    ...(props.attempt == null ? {} : { initialAttempt: props.attempt }),
   };
 }
 
-function toError(value: unknown): Error {
-  return value instanceof Error ? value : new Error(String(value));
+/** The adapter the widget works against. */
+function adapterOf<TValues>(
+  props: SlotlineProps<TValues>,
+): BookingAdapter<TValues> | AvailabilityAdapter<TValues> {
+  return props.adapter;
 }
 
-function messageOf(value: unknown, fallback: string): string {
-  const error = toError(value);
-  return error.message && error.message !== 'undefined' ? error.message : fallback;
+function configOf<TValues>(
+  props: SlotlineProps<TValues>,
+  browser: BrowserDefaults,
+): BookingConfigOverrides {
+  const locale = props.locale ?? browser?.locale;
+  return {
+    ...(locale === undefined ? {} : { locale }),
+    ...(props.messages === undefined ? {} : { messages: props.messages }),
+    ...(props.weekStartsOn === undefined ? {} : { weekStartsOn: props.weekStartsOn }),
+    ...(props.durations === undefined ? {} : { durationOptions: props.durations }),
+    ...(props.minDate === undefined ? {} : { minDate: props.minDate }),
+    ...(props.maxDate === undefined ? {} : { maxDate: props.maxDate }),
+    ...(props.title === undefined ? {} : { title: props.title }),
+    ...(props.context === undefined ? {} : { context: props.context }),
+  };
 }
 
-export function useBookingFlow(props: SlotlineProps): UseBookingFlowResult {
-  const {
-    adapter,
-    durations = [15, 30, 60],
-    duration: durationProp,
-    defaultDuration,
-    onDurationChange,
-    timeZone: timeZoneProp,
-    locale: localeProp,
-    messages: messagesProp,
-    theme = 'dark',
-    minDate: minDateProp,
-    maxDate: maxDateProp,
-    weekStartsOn = 0,
-    onBooked,
-    onError,
-    onDismiss,
-  } = props;
+/**
+ * A time zone or hour cycle from the props is a controlled value; without one, the
+ * browser's own is handed over as the initial value — which is why the controller
+ * treats a `default*` that appears for the first time as the initial value rather
+ * than as a late re-initialisation.
+ */
+function inputsOf<TValues>(
+  props: SlotlineProps<TValues>,
+  browser: BrowserDefaults,
+): BookingControllerInputs<TValues> {
+  const inputs: BookingControllerInputs<TValues> = {};
 
-  const locale = localeProp ?? detectLocale();
-  const timeZone = timeZoneProp ?? resolveTimeZone();
-  const resolvedTheme = useResolvedTheme(theme);
-  const messages = useMemo(() => resolveMessages(locale, messagesProp), [locale, messagesProp]);
+  if (props.timeZone !== undefined) inputs.timeZone = props.timeZone;
+  else {
+    const timeZone = props.defaultTimeZone ?? browser?.timeZone;
+    if (timeZone !== undefined) inputs.defaultTimeZone = timeZone;
+  }
 
-  const durationOptions = useMemo(
-    () => (durations.length > 0 ? durations : [15, 30, 60]),
-    [durations],
-  );
-  const [duration, setDurationValue] = useControllableState<number>({
-    value: durationProp,
-    defaultValue: defaultDuration ?? durationOptions[0] ?? 15,
-    onChange: onDurationChange,
+  if (props.duration !== undefined) inputs.duration = props.duration;
+  if (props.defaultDuration !== undefined) inputs.defaultDuration = props.defaultDuration;
+
+  if (props.timeFormat !== undefined) inputs.timeFormat = props.timeFormat;
+  else if (props.defaultTimeFormat !== undefined)
+    inputs.defaultTimeFormat = props.defaultTimeFormat;
+
+  return inputs;
+}
+
+/**
+ * Creates the controller once and keeps it alive for as long as the widget is
+ * mounted. Starting and stopping are the controller's own concern, so a Strict
+ * Mode double mount sends nothing twice.
+ */
+export function useBookingController<TValues = DefaultBookingValues>(
+  props: SlotlineProps<TValues>,
+): BookingController<TValues> {
+  const browser = useBrowserDefaults();
+  const propsRef = useRef(props);
+  propsRef.current = props;
+  const browserRef = useRef(browser);
+  browserRef.current = browser;
+
+  const controllerRef = useRef<BookingController<TValues> | null>(null);
+  if (controllerRef.current === null) {
+    controllerRef.current = createBookingController<TValues>({
+      ...optionsOf(props, browser),
+      handlers: {
+        // Every handler reads the latest props, so a re-render never leaves a
+        // stale callback behind.
+        onBooked: (result, request) =>
+          // The flow carries the payload as plain values; the adapter's own type is
+          // what the application declared for its form.
+          propsRef.current.onBooked?.(result, request as unknown as BookingRequest<TValues>),
+        onError: (error, context) => propsRef.current.onError?.(error, context),
+        onDismiss: () => propsRef.current.onDismiss?.(),
+        onDurationChange: (duration, metadata) =>
+          propsRef.current.onDurationChange?.(duration, metadata),
+        onTimeFormatChange: (timeFormat, metadata) =>
+          propsRef.current.onTimeFormatChange?.(timeFormat, metadata),
+        onContextChange: (context, metadata) =>
+          propsRef.current.onContextChange?.(context, metadata),
+      },
+    });
+  }
+  const controller = controllerRef.current;
+
+  // Props are the source of truth on every render. The controller compares them
+  // structurally, so re-supplying equal values costs nothing.
+  useEffect(() => {
+    controller.updateAdapter(adapterOf(propsRef.current));
+    controller.updateConfig(configOf(propsRef.current, browserRef.current));
+    controller.updateInputs(inputsOf(propsRef.current, browserRef.current));
   });
 
-  const minDate = useMemo(() => normalizeDateInput(minDateProp, timeZone), [minDateProp, timeZone]);
-  const maxDate = useMemo(() => normalizeDateInput(maxDateProp, timeZone), [maxDateProp, timeZone]);
-
-  const today = todayKey(timeZone);
-  const earliestDate = minDate ?? today;
-  const initialMonth = monthKeyOf(clampDayKey(earliestDate, minDate, maxDate));
-
-  const [state, dispatch] = useReducer(flowReducer, undefined, () =>
-    createFlowState({ duration, month: initialMonth }),
-  );
-
-  /* ---------------------------------------------------------------- refs -- */
-
-  const adapterRef = useRef<BookingAdapter>(adapter);
-  adapterRef.current = adapter;
-  const stateRef = useRef(state);
-  stateRef.current = state;
-  const messagesRef = useRef(messages);
-  messagesRef.current = messages;
-  const onErrorRef = useRef(onError);
-  onErrorRef.current = onError;
-  const onBookedRef = useRef(onBooked);
-  onBookedRef.current = onBooked;
-
-  /** Keeps two public `actions.submit()` calls from overlapping. */
-  const submitLockRef = useRef(false);
-  const daysTokenRef = useRef(0);
-  const slotsTokenRef = useRef(0);
-  const [availabilityNonce, setAvailabilityNonce] = useReducer((n: number) => n + 1, 0);
-  const [slotsNonce, setSlotsNonce] = useReducer((n: number) => n + 1, 0);
-
-  /* --------------------------------------------------- keep duration sync -- */
-
   useEffect(() => {
-    dispatch({ type: 'setDuration', duration });
-  }, [duration]);
+    controller.start();
+    return () => controller.stop();
+  }, [controller]);
 
-  /* ------------------------------------------------------- availability -- */
+  // A tab that comes back may have slept through midnight, or through the end of
+  // a safe-retry window.
+  useEffect(() => observeVisibilityChange(() => controller.refreshTime()), [controller]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    const token = (daysTokenRef.current += 1);
-    const from = firstDayOfMonth(state.month);
-    const to = lastDayOfMonth(state.month);
-
-    dispatch({ type: 'daysLoading', token });
-    void (async () => {
-      try {
-        const days = await adapterRef.current.getAvailability({
-          from,
-          to,
-          duration,
-          timeZone,
-          signal: controller.signal,
-        });
-        if (controller.signal.aborted) return;
-        dispatch({ type: 'daysLoaded', token, days: Array.isArray(days) ? days : [] });
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        dispatch({
-          type: 'daysFailed',
-          token,
-          error: messageOf(error, messagesRef.current.genericError),
-        });
-        onErrorRef.current?.(toError(error));
-      }
-    })();
-
-    return () => controller.abort();
-  }, [state.month, duration, timeZone, availabilityNonce]);
-
-  /* -------------------------------------------------------------- slots -- */
-
-  const daysRef = useRef(state.days);
-  daysRef.current = state.days;
-
-  useEffect(() => {
-    const date = state.selectedDate;
-    if (!date) return;
-
-    const token = (slotsTokenRef.current += 1);
-    // Register the token with the reducer *before* a response can arrive:
-    // `slotsLoaded` / `slotsFailed` are dropped unless they carry the newest one.
-    dispatch({ type: 'slotsLoading', token });
-
-    const inline = daysRef.current[date]?.slots;
-    if (inline && inline.length > 0) {
-      dispatch({ type: 'slotsLoaded', token, slots: inline });
-      return;
-    }
-
-    const controller = new AbortController();
-    void (async () => {
-      try {
-        const slots = await adapterRef.current.getSlots({
-          date,
-          duration,
-          timeZone,
-          signal: controller.signal,
-        });
-        if (controller.signal.aborted) return;
-        dispatch({ type: 'slotsLoaded', token, slots: Array.isArray(slots) ? slots : [] });
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        dispatch({
-          type: 'slotsFailed',
-          token,
-          error: messageOf(error, messagesRef.current.genericError),
-        });
-        onErrorRef.current?.(toError(error));
-      }
-    })();
-
-    return () => controller.abort();
-  }, [state.selectedDate, state.selectionNonce, duration, timeZone, slotsNonce]);
-
-  /* ------------------------------------------------------------- actions -- */
-
-  const selectDate = useCallback((dayKey: string) => {
-    dispatch({ type: 'selectDate', date: dayKey });
-  }, []);
-
-  const selectSlot = useCallback((slot: TimeSlot) => {
-    dispatch({ type: 'selectSlot', slot });
-  }, []);
-
-  const setDuration = useCallback(
-    (minutes: number) => {
-      setDurationValue(minutes);
-    },
-    [setDurationValue],
-  );
-
-  const setDetails = useCallback(
-    (details: Partial<{ name: string; email: string; notes: string }>) => {
-      dispatch({ type: 'setDetails', details });
-    },
-    [],
-  );
-
-  const goToMonth = useCallback((monthKey: string) => {
-    dispatch({ type: 'setMonth', month: monthKey });
-  }, []);
-
-  const touchField = useCallback((field: 'name' | 'email') => {
-    dispatch({ type: 'touch', field });
-  }, []);
-
-  const reset = useCallback(() => {
-    dispatch({ type: 'reset' });
-  }, []);
-
-  const back = useCallback(() => {
-    const current = stateRef.current;
-    // Never navigate away from an in-flight booking: the response would land on
-    // a different step than the one the user is looking at.
-    if (current.submitStatus === 'submitting') return;
-    // Nothing sits above the calendar, and the confirmation is terminal —
-    // both are the consumer's cue to close the widget.
-    if (current.step === 'date' || current.step === 'confirmed') {
-      onDismiss?.();
-      return;
-    }
-    dispatch({ type: 'back' });
-  }, [onDismiss]);
-
-  const reloadAvailability = useCallback(() => {
-    setAvailabilityNonce();
-  }, []);
-
-  const reloadSlots = useCallback(() => {
-    setSlotsNonce();
-  }, []);
-
-  const submit = useCallback(async () => {
-    // `actions.submit()` is public, so the disabled button alone cannot keep
-    // two requests from overlapping — the lock is set before the first await.
-    if (submitLockRef.current) return;
-
-    const snapshot = stateRef.current;
-    const currentMessages = messagesRef.current;
-    dispatch({ type: 'touch', field: 'name' });
-    dispatch({ type: 'touch', field: 'email' });
-
-    const errors = validateDetails(snapshot.details, currentMessages);
-    if (hasErrors(errors) || !snapshot.selectedSlot || !snapshot.selectedDate) return;
-
-    const request: BookingRequest = {
-      slot: { ...snapshot.selectedSlot, end: endOf(snapshot.selectedSlot, snapshot.duration) },
-      date: snapshot.selectedDate,
-      duration: snapshot.duration,
-      timeZone,
-      details: {
-        name: snapshot.details.name.trim(),
-        email: snapshot.details.email.trim(),
-        ...(snapshot.details.notes ? { notes: snapshot.details.notes } : {}),
-      },
-    };
-
-    /** The response may only drive the UI while this is still the same scenario. */
-    const scenario = snapshot.scenarioId;
-    const stillCurrent = () => {
-      const current = stateRef.current;
-      return (
-        // `scenarioId` also covers "reset, then book the very same slot again":
-        // the date and the slot can match a second time, the scenario cannot.
-        current.scenarioId === scenario &&
-        current.selectedDate === request.date &&
-        current.selectedSlot?.start === request.slot.start
-      );
-    };
-
-    submitLockRef.current = true;
-    dispatch({ type: 'submitStart' });
-    try {
-      const result: BookingResult = await adapterRef.current.createBooking(request);
-      // The booking exists, so the consumer always hears about it.
-      onBookedRef.current?.(result ?? {}, request);
-      if (stillCurrent()) dispatch({ type: 'submitSucceeded', scenario, result: result ?? {} });
-    } catch (error) {
-      onErrorRef.current?.(toError(error));
-      if (stillCurrent()) {
-        dispatch({
-          type: 'submitFailed',
-          scenario,
-          error: messageOf(error, currentMessages.genericError),
-        });
-      }
-    } finally {
-      submitLockRef.current = false;
-    }
-  }, [timeZone]);
-
-  /* ----------------------------------------------------------- selectors -- */
-
-  const monthGrid = useMemo(
-    () => buildMonthGrid(state.month, weekStartsOn),
-    [state.month, weekStartsOn],
-  );
-
-  const weekdayHeaders = useMemo(
-    () => rotateToWeekStart(shortWeekdayNames(locale, messages.weekdays), weekStartsOn),
-    [locale, messages.weekdays, weekStartsOn],
-  );
-
-  const weekdayLong = useMemo(
-    () => rotateToWeekStart(weekdayNames(locale), weekStartsOn),
-    [locale, weekStartsOn],
-  );
-
-  const fieldErrors = useMemo(
-    () => validateDetails(state.details, messages),
-    [state.details, messages],
-  );
-
-  const availabilityOf = useCallback((dayKey: string) => state.days[dayKey], [state.days]);
-
-  const isDayBookable = useCallback(
-    (dayKey: string) => {
-      if (compareDayKeys(dayKey, earliestDate) < 0) return false;
-      if (maxDate && compareDayKeys(dayKey, maxDate) > 0) return false;
-      const availability = state.days[dayKey];
-      if (!availability) return false;
-      const count = countSlots(availability);
-      return count === undefined ? true : count > 0;
-    },
-    [state.days, earliestDate, maxDate],
-  );
-
-  const selectedDateLabel = state.selectedDate ? formatFullDay(state.selectedDate, locale) : '';
-  const selectedTimeLabel = state.selectedSlot
-    ? formatTime(state.selectedSlot.start, timeZone, locale)
-    : '';
-
-  return {
-    state,
-    messages,
-    locale,
-    timeZone,
-    timeZoneName: state.step === 'date' ? formatTimeZoneName(timeZone, locale) : undefined,
-    theme: resolvedTheme,
-    title: state.step === 'confirmed' ? messages.bookedHeader : (props.title ?? messages.title),
-    durations: durationOptions,
-    weekStartsOn,
-    ...(minDate ? { minDate } : {}),
-    ...(maxDate ? { maxDate } : {}),
-    monthGrid,
-    weekdayHeaders,
-    weekdayLongNames: weekdayLong,
-    monthLabel: formatMonthYear(state.month, locale),
-    selectedDateLabel,
-    selectedTimeLabel,
-    durationLabel: format(messages.duration, { count: duration }),
-    availabilityOf,
-    isDayBookable,
-    // The confirmation is terminal: there is nothing to go back to, so the back
-    // affordance only appears there when the consumer supplied `onDismiss`.
-    canGoBack: (state.step !== 'date' && state.step !== 'confirmed') || Boolean(onDismiss),
-    fieldErrors,
-    shownFieldErrors: visibleErrors(fieldErrors, state.touched),
-    detailsValid: !hasErrors(fieldErrors),
-    actions: {
-      selectDate,
-      selectSlot,
-      setDuration,
-      setDetails,
-      touchField,
-      back,
-      submit,
-      reset,
-      goToMonth,
-      previousMonth: () => goToMonth(addMonths(stateRef.current.month, -1)),
-      nextMonth: () => goToMonth(addMonths(stateRef.current.month, 1)),
-      reloadAvailability,
-      reloadSlots,
-    },
-  };
+  return controller;
 }
 
-/** Convenience re-export for consumers that only need the day key of a date. */
-export { dayKeyOf };
+function useSubscribedFlow<TValues>(controller: BookingController<TValues>): UseBookingFlowResult {
+  const snapshot: BookingSnapshot = useSyncExternalStore(
+    controller.subscribe,
+    controller.getSnapshot,
+    controller.getSnapshot,
+  );
 
-export type { SlotlineStep };
+  return useMemo(() => ({ snapshot, actions: controller.actions }), [snapshot, controller]);
+}
+
+/**
+ * The headless widget: the whole flow, no markup.
+ *
+ * ```tsx
+ * const { snapshot, actions } = useBookingFlow({ adapter });
+ * ```
+ */
+export function useBookingFlow<TValues = DefaultBookingValues>(
+  props: SlotlineProps<TValues>,
+): UseBookingFlowResult {
+  return useSubscribedFlow(useBookingController(props));
+}
+
+/** Presentation values shared by the built-in parts. */
+export function useSlotlineUI<TValues = DefaultBookingValues>(
+  props: SlotlineProps<TValues>,
+): SlotlineUIContextValue {
+  const browser = useBrowserDefaults();
+  const locale = props.locale ?? browser?.locale ?? 'en';
+  const messages = useMemo(() => resolveMessages(locale, props.messages), [locale, props.messages]);
+  const theme = useResolvedTheme(props.theme ?? 'dark');
+
+  return useMemo<SlotlineUIContextValue>(
+    () => ({
+      animations: props.animations ?? cssAnimations,
+      classNames: props.classNames,
+      className: props.className,
+      autoFocus: props.autoFocus ?? false,
+      trapFocus: props.trapFocus ?? false,
+      canDismiss: Boolean(props.onDismiss),
+      onCheckStatus: props.onCheckStatus,
+      messages,
+      locale,
+      theme,
+    }),
+    [
+      props.animations,
+      props.classNames,
+      props.className,
+      props.autoFocus,
+      props.trapFocus,
+      props.onDismiss,
+      props.onCheckStatus,
+      messages,
+      locale,
+      theme,
+    ],
+  );
+}

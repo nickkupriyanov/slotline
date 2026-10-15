@@ -21,6 +21,8 @@ import {
   todayKey,
   weekdayIndex,
   weekdayNames,
+  instantOfZonedTime,
+  zoneOffsetMs,
 } from './date';
 
 describe('calendar day keys', () => {
@@ -112,8 +114,57 @@ describe('formatting', () => {
 describe('slots', () => {
   it('derives the end of a slot from the duration', () => {
     expect(endOf({ start: '2026-05-18T09:15:00Z' }, 15)).toBe('2026-05-18T09:30:00.000Z');
-    expect(
-      endOf({ start: '2026-05-18T09:15:00Z', end: '2026-05-18T09:45:00Z' }, 15),
-    ).toBe('2026-05-18T09:45:00Z');
+    expect(endOf({ start: '2026-05-18T09:15:00Z', end: '2026-05-18T09:45:00Z' }, 15)).toBe(
+      '2026-05-18T09:45:00Z',
+    );
+  });
+});
+
+describe('zone arithmetic', () => {
+  it('measures the offset of a zone at an instant', () => {
+    const instant = new Date('2026-05-18T12:00:00Z');
+
+    expect(zoneOffsetMs(instant, 'UTC')).toBe(0);
+    expect(zoneOffsetMs(instant, 'Europe/Berlin')).toBe(2 * 60 * 60 * 1000);
+    expect(zoneOffsetMs(instant, 'Asia/Tokyo')).toBe(9 * 60 * 60 * 1000);
+    expect(zoneOffsetMs(instant, 'America/New_York')).toBe(-4 * 60 * 60 * 1000);
+  });
+
+  it('follows the seasonal offset of a zone', () => {
+    const winter = new Date('2026-01-15T12:00:00Z');
+    const summer = new Date('2026-07-15T12:00:00Z');
+
+    expect(zoneOffsetMs(winter, 'Europe/Berlin')).toBe(60 * 60 * 1000);
+    expect(zoneOffsetMs(summer, 'Europe/Berlin')).toBe(2 * 60 * 60 * 1000);
+  });
+
+  it('turns a local wall time into the right instant', () => {
+    expect(instantOfZonedTime('2026-05-18', 0, 'UTC').toISOString()).toBe(
+      '2026-05-18T00:00:00.000Z',
+    );
+    // Local midnight in Berlin is 22:00 UTC the day before while DST is on.
+    expect(instantOfZonedTime('2026-05-18', 0, 'Europe/Berlin').toISOString()).toBe(
+      '2026-05-17T22:00:00.000Z',
+    );
+    expect(instantOfZonedTime('2026-01-15', 0, 'Europe/Berlin').toISOString()).toBe(
+      '2026-01-14T23:00:00.000Z',
+    );
+    expect(instantOfZonedTime('2026-05-18', 9 * 60 + 15, 'Asia/Tokyo').toISOString()).toBe(
+      '2026-05-18T00:15:00.000Z',
+    );
+  });
+
+  it('places a wall time on the correct side of a transition', () => {
+    // 2026-03-29: 02:00 local becomes 03:00, so 01:00 is still +1 and 12:00 is +2.
+    expect(instantOfZonedTime('2026-03-29', 60, 'Europe/Berlin').toISOString()).toBe(
+      '2026-03-29T00:00:00.000Z',
+    );
+    expect(instantOfZonedTime('2026-03-29', 12 * 60, 'Europe/Berlin').toISOString()).toBe(
+      '2026-03-29T10:00:00.000Z',
+    );
+    // 2026-10-25: 03:00 local becomes 02:00, so 12:00 is back on +1.
+    expect(instantOfZonedTime('2026-10-25', 12 * 60, 'Europe/Berlin').toISOString()).toBe(
+      '2026-10-25T11:00:00.000Z',
+    );
   });
 });

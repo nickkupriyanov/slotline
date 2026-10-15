@@ -1,12 +1,25 @@
 import { createContext, useCallback, useContext } from 'react';
+import {
+  SLOT_CLASS,
+  cx,
+  defaultMessages,
+  type BookingControllerActions,
+  type BookingSnapshot,
+  type ClassValue,
+  type SlotlineMessages,
+} from '@nickkupriyanov/slotline-core';
 import { cssAnimations } from './animations/css';
-import { SLOT_CLASS, cx, type ClassValue } from '@nickkupriyanov/slotline-core';
-import type { UseBookingFlowResult } from './useBookingFlow';
-import type { AnimationKit, SlotlineClassSlot } from './types';
+import type { AnimationKit, SlotlineClassSlot, SlotlineTheme } from './types';
 
 /* -------------------------------------------------------------------------- */
 /*  Flow context                                                               */
 /* -------------------------------------------------------------------------- */
+
+/** What the flow hands to a binding: one immutable snapshot and the actions. */
+export interface UseBookingFlowResult {
+  snapshot: BookingSnapshot;
+  actions: BookingControllerActions;
+}
 
 export const FlowContext = createContext<UseBookingFlowResult | null>(null);
 
@@ -31,18 +44,34 @@ export const useFlow = useSlotlineContext;
 /*  UI context                                                                 */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Presentation values shared by the built-in parts. Copy and locale live here
+ * rather than in the view model: they are how the application asked the widget to
+ * speak, not something derived from the flow.
+ */
 export interface SlotlineUIContextValue {
   animations: AnimationKit;
   classNames?: Partial<Record<SlotlineClassSlot, string>>;
+  className?: string;
   autoFocus: boolean;
   trapFocus: boolean;
-  className?: string;
+  /** Whether the application supplied a dismiss handler. */
+  canDismiss: boolean;
+  /** Asks the application to look up the outcome of an unresolved attempt. */
+  onCheckStatus?: (() => void) | undefined;
+  messages: SlotlineMessages;
+  locale: string;
+  theme: Exclude<SlotlineTheme, 'system'>;
 }
 
 export const UIContext = createContext<SlotlineUIContextValue>({
   animations: cssAnimations,
   autoFocus: false,
   trapFocus: false,
+  canDismiss: false,
+  messages: defaultMessages.en,
+  locale: 'en',
+  theme: 'dark',
 });
 
 export function useUI(): SlotlineUIContextValue {

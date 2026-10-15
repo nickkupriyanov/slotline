@@ -2,6 +2,10 @@
  * Built-in copy. Two locales ship in the box (`en`, `ru`); any other language
  * tag still works — `Intl` then formats the dates while the copy falls back to
  * English, or to whatever you pass via the `messages` prop.
+ *
+ * `format()` is the single substitution mechanism: dictionaries hold plain text
+ * with `{placeholder}` markers and no markup, and the binding renders the result
+ * as text, so a dictionary can never inject HTML.
  */
 import type { SlotlineMessages, BuiltInLocale } from './types';
 
@@ -32,10 +36,45 @@ const en: SlotlineMessages = {
   genericError: 'Something went wrong. Please try again.',
   retry: 'Try again',
   bookedSummary: '{date} at {time} for {duration}.',
-  inviteSent: 'Calendar invite sent to {email}.',
   bookAnother: 'Book another',
   bookedTitle: "You're booked",
   timeZoneHint: 'Times shown in {zone}',
+
+  attemptPendingTitle: 'Finishing your booking',
+  attemptPendingDescription: 'We are confirming your booking. This can take a moment.',
+  attemptSummaryLabel: 'Booking being confirmed',
+  attemptUnknownTitle: 'We could not confirm the result',
+  attemptUnknownDescription:
+    'The booking may have been created: the server did not confirm the outcome.',
+  attemptUnknownInstructions: 'Check your email or your bookings before trying again.',
+
+  retryBookingLabel: 'Send the same request again',
+  retryBookingDescription: 'The same request and the same key will be sent again.',
+  retryUnavailableDescription:
+    'Repeating this request is not safe. Check the booking status first.',
+  retryWindowExpiredDescription:
+    'The window for a safe retry has expired. Check the booking status first.',
+  checkBookingStatusLabel: 'Check booking status',
+
+  formErrorsSummaryTitle: 'Fix the highlighted fields',
+  unmappedFieldErrorDescription: 'The server reported an error for “{field}”.',
+  fieldRequired: '{field} is required.',
+
+  invitationSentDescription: 'Calendar invite sent to {email}.',
+  invitationPendingDescription: 'The calendar invite to {email} is being sent.',
+  invitationFailedDescription: 'The calendar invite to {email} could not be sent.',
+
+  timeZoneLabel: 'Time zone',
+  timeZoneSearchLabel: 'Search time zones',
+  timeZoneSearchPlaceholder: 'City or region',
+  timeZoneNoResultsDescription: 'No matching time zones.',
+
+  timeFormatLabel: 'Time format',
+  timeFormat12HourLabel: '12-hour',
+  timeFormat24HourLabel: '24-hour',
+
+  slotUtcOffsetDescription: 'UTC{offset}',
+
   weekdays: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
 };
 
@@ -66,10 +105,43 @@ const ru: SlotlineMessages = {
   genericError: 'Что-то пошло не так. Попробуйте ещё раз.',
   retry: 'Повторить',
   bookedSummary: '{date} в {time}, {duration}.',
-  inviteSent: 'Приглашение отправлено на {email}.',
   bookAnother: 'Записаться ещё',
   bookedTitle: 'Вы записаны',
   timeZoneHint: 'Время указано в {zone}',
+
+  attemptPendingTitle: 'Завершаем оформление',
+  attemptPendingDescription: 'Подтверждаем запись. Это может занять несколько секунд.',
+  attemptSummaryLabel: 'Запись, которую подтверждаем',
+  attemptUnknownTitle: 'Не удалось подтвердить результат',
+  attemptUnknownDescription: 'Запись, возможно, создана: сервер не подтвердил результат операции.',
+  attemptUnknownInstructions: 'Проверьте почту или список записей, прежде чем повторять попытку.',
+
+  retryBookingLabel: 'Отправить тот же запрос снова',
+  retryBookingDescription: 'Тот же запрос будет отправлен повторно с прежним ключом.',
+  retryUnavailableDescription:
+    'Повторять этот запрос небезопасно. Сначала проверьте статус записи.',
+  retryWindowExpiredDescription: 'Срок безопасного повтора истёк. Сначала проверьте статус записи.',
+  checkBookingStatusLabel: 'Проверить статус записи',
+
+  formErrorsSummaryTitle: 'Исправьте выделенные поля',
+  unmappedFieldErrorDescription: 'Сервер сообщил об ошибке для поля «{field}».',
+  fieldRequired: 'Заполните поле «{field}».',
+
+  invitationSentDescription: 'Приглашение отправлено на {email}.',
+  invitationPendingDescription: 'Приглашение на {email} отправляется.',
+  invitationFailedDescription: 'Не удалось отправить приглашение на {email}.',
+
+  timeZoneLabel: 'Часовой пояс',
+  timeZoneSearchLabel: 'Поиск часового пояса',
+  timeZoneSearchPlaceholder: 'Город или регион',
+  timeZoneNoResultsDescription: 'Подходящих часовых поясов нет.',
+
+  timeFormatLabel: 'Формат времени',
+  timeFormat12HourLabel: '12-часовой',
+  timeFormat24HourLabel: '24-часовой',
+
+  slotUtcOffsetDescription: 'UTC{offset}',
+
   weekdays: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
 };
 

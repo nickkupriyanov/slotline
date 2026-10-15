@@ -1,14 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  addDays,
-  countSlots,
-  format,
-  formatFullDay,
-  monthKeyOf,
-  todayKey,
-  weekdayIndex,
-} from '@nickkupriyanov/slotline-core';
-import { useClassNames, useFlow } from '../context';
+import { addDays, monthKeyOf, weekdayIndex } from '@nickkupriyanov/slotline-core';
+import { useClassNames, useFlow, useUI } from '../context';
 import { ChevronLeftIcon, ChevronRightIcon } from './icons';
 
 function chunk<T>(values: T[], size: number): T[][] {
@@ -23,36 +15,30 @@ function chunk<T>(values: T[], size: number): T[][] {
  * Step 1 — the month grid. Days carrying availability render a dot and become
  * selectable; everything else stays visible but inert, exactly like the
  * reference design.
+ *
+ * Everything it renders comes from the view model, including the accessible name
+ * of a day; the component only owns focus, roving tabindex and keyboard
+ * navigation.
  */
 export function CalendarStep() {
-  const {
-    state,
-    messages,
-    locale,
-    timeZone,
-    timeZoneName,
-    monthLabel,
-    monthGrid,
-    weekdayHeaders,
-    weekdayLongNames,
-    weekStartsOn,
-    actions,
-    availabilityOf,
-    isDayBookable,
-  } = useFlow();
+  const { snapshot, actions } = useFlow();
+  const { messages } = useUI();
   const cls = useClassNames();
+  const view = snapshot.view;
+  const { month, days } = view;
+  const selectedDate = view.selection.date;
+
   const gridRef = useRef<HTMLDivElement>(null);
   const pendingFocusRef = useRef(false);
   /** Day-of-month to restore after PageUp/PageDown swapped the visible month. */
   const pendingMonthFocusRef = useRef<string | null>(null);
   const [focusKey, setFocusKey] = useState<string | null>(null);
-  const today = todayKey(timeZone);
 
-  const rows = useMemo(() => chunk(monthGrid, 7), [monthGrid]);
+  const rows = useMemo(() => chunk(month.grid, 7), [month.grid]);
 
   const firstBookable = useMemo(
-    () => monthGrid.find((day) => monthKeyOf(day) === state.month && isDayBookable(day)),
-    [monthGrid, state.month, isDayBookable],
+    () => month.grid.find((day) => monthKeyOf(day) === month.key && days[day]?.bookable),
+    [month.grid, month.key, days],
   );
 
   /**
@@ -61,17 +47,17 @@ export function CalendarStep() {
    * key is gone, and a stale value would leave every cell at `tabindex="-1"`.
    */
   const focusTarget = useMemo(() => {
-    if (focusKey && monthGrid.includes(focusKey)) return focusKey;
-    if (state.selectedDate && monthGrid.includes(state.selectedDate)) return state.selectedDate;
-    return firstBookable ?? monthGrid[0] ?? `${state.month}-01`;
-  }, [focusKey, monthGrid, state.selectedDate, firstBookable, state.month]);
+    if (focusKey && month.grid.includes(focusKey)) return focusKey;
+    if (selectedDate && month.grid.includes(selectedDate)) return selectedDate;
+    return firstBookable ?? month.grid[0] ?? `${month.key}-01`;
+  }, [focusKey, month.grid, selectedDate, firstBookable, month.key]);
 
   useEffect(() => {
     if (!pendingFocusRef.current || !focusKey) return;
     pendingFocusRef.current = false;
     const node = gridRef.current?.querySelector<HTMLElement>(`[data-day="${focusKey}"]`);
     node?.focus();
-  }, [focusKey, monthGrid]);
+  }, [focusKey, month.grid]);
 
   // PageUp/PageDown rebuild the grid, so bring the keyboard along — otherwise
   // focus dies with the unmounted cell.
@@ -79,14 +65,14 @@ export function CalendarStep() {
     const dayOfMonth = pendingMonthFocusRef.current;
     if (!dayOfMonth) return;
     pendingMonthFocusRef.current = null;
-    const sameDay = monthGrid.find(
-      (candidate) => monthKeyOf(candidate) === state.month && candidate.slice(8, 10) === dayOfMonth,
+    const sameDay = month.grid.find(
+      (candidate) => monthKeyOf(candidate) === month.key && candidate.slice(8, 10) === dayOfMonth,
     );
-    const target = sameDay ?? monthGrid.find((candidate) => monthKeyOf(candidate) === state.month);
+    const target = sameDay ?? month.grid.find((candidate) => monthKeyOf(candidate) === month.key);
     if (!target) return;
     pendingFocusRef.current = true;
     setFocusKey(target);
-  }, [state.month, monthGrid]);
+  }, [month.key, month.grid]);
 
   const moveFocus = useCallback((nextKey: string) => {
     pendingFocusRef.current = true;
@@ -97,7 +83,7 @@ export function CalendarStep() {
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       const current = (event.target as HTMLElement).dataset?.day;
       if (!current) return;
-      const offsetFromWeekStart = (weekdayIndex(current) - weekStartsOn + 7) % 7;
+      const offsetFromWeekStart = (weekdayIndex(current) - month.weekStartsOn + 7) % 7;
       let next: string | undefined;
 
       switch (event.key) {
@@ -134,20 +120,20 @@ export function CalendarStep() {
       }
 
       event.preventDefault();
-      const last = monthGrid[monthGrid.length - 1];
-      const first = monthGrid[0];
+      const last = month.grid[month.grid.length - 1];
+      const first = month.grid[0];
       if (last && first && (next < first || next > last)) {
         actions.goToMonth(monthKeyOf(next));
       }
       moveFocus(next);
     },
-    [actions, monthGrid, moveFocus, weekStartsOn],
+    [actions, month.grid, month.key, month.weekStartsOn],
   );
 
   return (
-    <div className={cls('calendar')} data-status={state.daysStatus}>
+    <div className={cls('calendar')} data-status={month.status}>
       <div className={cls('calendarHeader')}>
-        <h3 className={cls('monthLabel')}>{monthLabel}</h3>
+        <h3 className={cls('monthLabel')}>{month.label}</h3>
         <div className="sl-calendar-nav">
           <button
             type="button"
@@ -169,46 +155,35 @@ export function CalendarStep() {
       </div>
 
       <div className={cls('weekdays')}>
-        {weekdayHeaders.map((label, index) => (
-          <span key={weekdayLongNames[index] ?? index} className={cls('weekday')}>
+        {month.weekdayHeaders.map((label, index) => (
+          <span key={month.weekdayLongNames[index] ?? index} className={cls('weekday')}>
             <span aria-hidden="true">{label}</span>
-            <span className="sl-visually-hidden">{weekdayLongNames[index]}</span>
+            <span className="sl-visually-hidden">{month.weekdayLongNames[index]}</span>
           </span>
         ))}
       </div>
 
-      {state.daysStatus === 'error' ? (
-        <div className={cls('error')} role="alert">
-          <span>{state.daysError}</span>
-          <button type="button" className="sl-link-button" onClick={actions.reloadAvailability}>
-            {messages.retry}
-          </button>
-        </div>
-      ) : null}
+      <div className={cls('error')} role="alert">
+        <span>{month.error}</span>
+        <button type="button" className="sl-link-button" onClick={actions.reloadAvailability}>
+          {messages.retry}
+        </button>
+      </div>
 
       <div
         ref={gridRef}
-        key={state.month}
+        key={month.key}
         className={cls('grid')}
         role="grid"
         aria-label={messages.calendarLabel}
-        aria-busy={state.daysStatus === 'loading'}
+        aria-busy={month.status === 'loading'}
         onKeyDown={onKeyDown}
       >
         {rows.map((row, rowIndex) => (
           <div className="sl-grid-row" role="row" key={row[0]}>
             {row.map((day, cellIndex) => {
-              const outside = monthKeyOf(day) !== state.month;
-              const bookable = isDayBookable(day);
-              const count = countSlots(availabilityOf(day));
-              const selected = state.selectedDate === day;
-              const label = [
-                formatFullDay(day, locale),
-                count !== undefined && count > 0
-                  ? format(messages.slotsCount, { count })
-                  : messages.dayUnavailable,
-              ].join(', ');
-
+              const cell = days[day];
+              const bookable = cell?.bookable ?? false;
               return (
                 <button
                   key={day}
@@ -216,14 +191,14 @@ export function CalendarStep() {
                   role="gridcell"
                   data-day={day}
                   tabIndex={day === focusTarget ? 0 : -1}
-                  aria-selected={selected || undefined}
+                  aria-selected={cell?.isSelected || undefined}
                   aria-disabled={!bookable || undefined}
-                  aria-current={day === today ? 'date' : undefined}
-                  aria-label={label}
+                  aria-current={cell?.isToday ? 'date' : undefined}
+                  aria-label={cell?.label}
                   className={cls(
                     'day',
-                    outside && 'is-outside',
-                    selected && 'is-selected',
+                    cell?.isOutside && 'is-outside',
+                    cell?.isSelected && 'is-selected',
                     bookable && 'is-bookable',
                   )}
                   style={{ '--sl-index': rowIndex * 7 + cellIndex } as React.CSSProperties}
@@ -245,9 +220,7 @@ export function CalendarStep() {
         ))}
       </div>
 
-      <p className="sl-timezone">
-        {format(messages.timeZoneHint, { zone: timeZoneName ?? timeZone, timeZone })}
-      </p>
+      <p className="sl-timezone">{view.time.zoneHint}</p>
     </div>
   );
 }

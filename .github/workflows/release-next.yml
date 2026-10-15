@@ -1,0 +1,82 @@
+name: Release next
+
+# The prerelease line of the development branch (§8).
+#
+# `main` keeps its own release workflow and its `latest` line; this one publishes
+# the next API under the `next` tag, so an installed `latest` never picks up a
+# prerelease. Changesets takes the tag from `.changeset/pre.json` (entered with
+# `changeset pre enter next`), and the base branch from `.changeset/config.json`,
+# which is why both files travel with the branch.
+#
+# The Angular binding stays `private` until the stable release: Changesets skips
+# it, and its packed artifacts are verified here instead — the same check that
+# builds a clean Angular consumer from the tarballs.
+
+on:
+  push:
+    branches: [slotline-next-api]
+  workflow_dispatch:
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: write
+  pull-requests: write
+  # Required for npm provenance attestation.
+  id-token: write
+
+jobs:
+  release-next:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # changesets needs the history to find the base branch.
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify the npm token
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::NPM_TOKEN is empty or the secret is missing. Add it under Settings → Secrets and variables → Actions, and name it exactly NPM_TOKEN."
+            exit 1
+          fi
+          if ! who=$(npm whoami 2>&1); then
+            echo "::error::NPM_TOKEN does not authenticate: $who"
+            exit 1
+          fi
+          echo "::notice::npm token authenticates as $who"
+
+      # The Angular package is not published from this branch, so the tarball check
+      # is the only thing that proves it is shippable: it packs all three packages
+      # and builds clean React and Angular consumers from them.
+      - name: Verify the packed packages before publishing
+        run: pnpm verify:install
+
+      # Opens (or updates) the "Version Packages" pull request against the branch.
+      # Merging it runs `pnpm release`, which builds the packages and publishes the
+      # prerelease under the `next` tag; `latest` stays where it is.
+      - name: Create the prerelease PR, or publish under the next tag
+        uses: changesets/action@v2
+        with:
+          version-script: pnpm version-packages
+          publish-script: pnpm release
+          commit-message: 'chore: version packages (next)'
+          pr-title: 'chore: version packages (next)'
+          create-github-releases: true
+          push-git-tags: true
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: 'true'

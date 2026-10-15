@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../out-tsc/slotline-angular-spec",
+    "types": ["vitest/globals"],
+    "paths": {}
+  },
+  "include": ["src/**/*.ts"]
+}

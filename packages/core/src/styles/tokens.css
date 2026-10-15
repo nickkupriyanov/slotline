@@ -69,8 +69,7 @@
   --sl-skeleton-shine: rgba(255, 255, 255, 0.12);
 
   --sl-shadow-card:
-    0 1px 0 rgba(255, 255, 255, 0.03) inset,
-    0 32px 64px -32px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 32px 64px -32px rgba(0, 0, 0, 0.9),
     0 8px 24px -16px rgba(0, 0, 0, 0.7);
 }
 
@@ -113,6 +112,5 @@
   --sl-skeleton-shine: rgba(23, 23, 25, 0.12);
 
   --sl-shadow-card:
-    0 32px 64px -40px rgba(23, 23, 25, 0.35),
-    0 6px 20px -12px rgba(23, 23, 25, 0.12);
+    0 32px 64px -40px rgba(23, 23, 25, 0.35), 0 6px 20px -12px rgba(23, 23, 25, 0.12);
 }

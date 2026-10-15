@@ -62,10 +62,14 @@ export function App() {
   const [animations, setAnimations] = useState<'css' | 'motion'>('css');
   const [surface, setSurface] = useState<'inline' | 'modal'>('inline');
   const [log, setLog] = useState<LogEntry[]>([]);
-
   const resolvedTimeZone = timeZone === 'auto' ? undefined : timeZone;
+
   const adapter = useMemo(
-    () => createMockAdapter({ timeZone: resolvedTimeZone, horizonDays: 90 }),
+    () =>
+      createMockAdapter({
+        timeZone: resolvedTimeZone,
+        horizonDays: 90,
+      }),
     [resolvedTimeZone],
   );
 
@@ -93,7 +97,9 @@ export function App() {
           <h1>@nickkupriyanov/slotline-react</h1>
           <p>Calendar → slots → details → confirmation. Dark by default, CSS-variable theming.</p>
         </div>
-        <span className="page__badge">{animations === 'motion' ? 'motion springs' : 'pure CSS'}</span>
+        <span className="page__badge">
+          {animations === 'motion' ? 'motion springs' : 'pure CSS'}
+        </span>
       </header>
 
       <section className="controls" aria-label="Playground controls">
@@ -162,7 +168,9 @@ export function App() {
         <aside className="log" aria-live="polite">
           <h2>onBooked</h2>
           {log.length === 0 ? (
-            <p className="log__empty">Complete a booking to see the payload your backend receives.</p>
+            <p className="log__empty">
+              Complete a booking to see the payload your backend receives.
+            </p>
           ) : (
             <ol>
               {log.map((entry) => (

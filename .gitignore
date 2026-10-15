@@ -9,6 +9,12 @@ coverage/
 .env
 .env.local
 
+# Angular compiler output (the specs are compiled before they run)
+out-tsc/
+
+# Angular CLI cache
+.angular/
+
 # scratch / tooling artifacts
 .verify/
 .screenshots/

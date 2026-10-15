@@ -2,11 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, slotline-next-api]
   pull_request:
 
 jobs:
-  verify:
+  # Checks the workspace and packs the libraries, once. Every consumer job below
+  # installs the tarballs this job produces, outside the workspace.
+  packages:
+    name: Packages
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -33,11 +36,94 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Verify the packed packages install in a clean app
-        run: pnpm verify:install
+      - name: Pack the libraries
+        run: node tools/verify-install.mjs --pack-only .verify/tarballs
 
-      - name: Build the playground
+      - name: Upload the tarballs
+        uses: actions/upload-artifact@v5
+        with:
+          name: slotline-tarballs
+          path: .verify/tarballs/*.tgz
+          retention-days: 7
+
+  # One environment per job, each with its own npm cache: a consumer's tree is not
+  # the workspace's, and no leg may see another's. The legs and their pinned
+  # versions come from §9 of docs/specification.md.
+  consumer:
+    name: ${{ matrix.leg }}
+    needs: packages
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        leg:
+          - react-18
+          - react-19
+          - angular-21-zoneless
+          - angular-21-zone
+          - angular-22-zoneless
+          - angular-22-zone
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v6
+        with:
+          name: slotline-tarballs
+          path: .verify/tarballs
+
+      # The key names the template and mode (the leg), the Node version and the
+      # lockfile, so a leg never restores another leg's cache.
+      - name: Restore the ${{ matrix.leg }} npm cache
+        uses: actions/cache@v4
+        with:
+          path: .verify/${{ matrix.leg }}/npm-cache
+          key: npm-${{ runner.os }}-node24-${{ matrix.leg }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            npm-${{ runner.os }}-node24-${{ matrix.leg }}-
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # The script needs no workspace install: it reads the manifests, builds the
+      # scratch copy, runs that leg's production build and its SSR checks, and
+      # hydrates the page in the runner's Chrome (already present, as in the layout
+      # guard) to prove the server's markup survives hydration.
+      - name: Verify ${{ matrix.leg }}
+        run: node tools/verify-install.mjs --leg ${{ matrix.leg }} --tarballs .verify/tarballs
+
+  # The examples and the browser-level checks that need a real layout engine.
+  web:
+    name: Examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the packages
+        run: pnpm build
+
+      - name: Build the React playground
         run: pnpm --filter @nickkupriyanov/slotline-playground build
+
+      - name: Build the Angular playground
+        run: pnpm --filter @nickkupriyanov/slotline-playground-angular build
+
+      # The gallery drives five real widgets to five screens, and the second pass
+      # drives the reactive-form example; only a real browser can show that every
+      # screen renders, keeps the card's width, and that a form submits the value the
+      # widget picked.
+      - name: Angular playground in a real browser
+        run: pnpm check:gallery
 
       # jsdom has no layout engine, so the width invariant is measured in a real
       # browser. The runner ships Chrome at /usr/bin/google-chrome, which

@@ -145,11 +145,15 @@ describe('P1: a slow booking response must not confirm another selection', () =>
     // A headless consumer can move the selection even though the built-in UI
     // disables navigation while a request is in flight.
     await act(async () => {
-      harness.actions().actions.selectSlot({ start: '2026-05-04T10:00:00Z' });
+      harness.actions().actions.selectSlot({ id: 'slot-2', start: '2026-05-04T10:00:00Z' });
     });
 
     await act(async () => {
-      resolve({ id: 'stale', inviteeEmail: 'ann@example.com' });
+      resolve({
+        id: 'stale',
+        status: 'confirmed',
+        invitation: { status: 'sent', email: 'ann@example.com' },
+      });
     });
 
     expect(screen.queryByText("You're booked")).not.toBeInTheDocument();
@@ -178,7 +182,7 @@ describe('P1: a slow booking response must not confirm another selection', () =>
     expect(screen.getByRole('button', { name: 'Back' })).toBeDisabled();
 
     await act(async () => {
-      resolve({ id: 'ok' });
+      resolve({ id: 'ok', status: 'confirmed' });
     });
     expect(await screen.findByText("You're booked")).toBeInTheDocument();
   });
@@ -201,7 +205,7 @@ describe('P2: submit is not re-entrant', () => {
     expect(createBooking).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      resolve({ id: 'once' });
+      resolve({ id: 'once', status: 'confirmed' });
     });
     expect(await screen.findByText("You're booked")).toBeInTheDocument();
   });
@@ -212,9 +216,7 @@ describe('P2: submit is not re-entrant', () => {
 /* -------------------------------------------------------------------------- */
 
 function tabStops() {
-  return screen
-    .getAllByRole('gridcell')
-    .filter((cell) => cell.getAttribute('tabindex') === '0');
+  return screen.getAllByRole('gridcell').filter((cell) => cell.getAttribute('tabindex') === '0');
 }
 
 describe('P2: keyboard navigation across months', () => {
@@ -238,9 +240,7 @@ describe('P2: keyboard navigation across months', () => {
 
     (await day(/Monday, May 4/)).focus();
     await user.keyboard('{ArrowRight}');
-    await waitFor(() =>
-      expect(document.activeElement).toHaveAttribute('data-day', '2026-05-05'),
-    );
+    await waitFor(() => expect(document.activeElement).toHaveAttribute('data-day', '2026-05-05'));
 
     await user.click(screen.getByRole('button', { name: 'Next month' }));
     await waitFor(() => expect(screen.getByText('June 2026')).toBeInTheDocument());
@@ -289,8 +289,8 @@ describe('P2: the confirmation step is dismissible', () => {
 /*  P1 — the same slot booked again is still a different scenario              */
 /* -------------------------------------------------------------------------- */
 
-describe('P1: a stale response after a reset', () => {
-  it('does not confirm an abandoned request when the same slot is picked again', async () => {
+describe('P1: a reset while the request is in flight', () => {
+  it('returns to the calendar once the abandoned request lands', async () => {
     const user = userEvent.setup();
     const onBooked = vi.fn();
     const { adapter, createBooking, resolve } = deferredAdapter();
@@ -309,19 +309,26 @@ describe('P1: a stale response after a reset', () => {
       harness.actions().actions.reset();
     });
 
-    // …and books the very same day and slot all over again.
-    await user.click(await day(/Monday, May 4/));
-    await user.click(await screen.findByRole('button', { name: '09:15' }));
+    // …but the attempt owns the screen until its outcome is known: the widget no
+    // longer lets a second booking start on top of an unsettled one.
+    expect(screen.queryByRole('button', { name: 'Next month' })).not.toBeInTheDocument();
 
     await act(async () => {
-      resolve({ id: 'ann', inviteeEmail: 'ann@example.com' });
+      resolve({
+        id: 'ann',
+        status: 'confirmed',
+        invitation: { status: 'sent', email: 'ann@example.com' },
+      });
     });
 
-    // Date and slot match again, but this is a different scenario.
-    expect(screen.queryByText("You're booked")).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Your name')).toBeInTheDocument();
+    // The booking exists, so the consumer hears about it — with the request it
+    // belongs to — while the confirmation stays out of a flow the user left.
     expect(onBooked).toHaveBeenCalledTimes(1);
-    expect(onBooked.mock.calls[0]?.[1].details.email).toBe('ann@example.com');
+    expect(onBooked.mock.calls[0]?.[1].values.email).toBe('ann@example.com');
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Next month' })).toBeInTheDocument(),
+    );
+    expect(screen.queryByText("You're booked")).not.toBeInTheDocument();
   });
 });
 

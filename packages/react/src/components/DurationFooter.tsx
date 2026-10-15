@@ -1,10 +1,14 @@
 import { format } from '@nickkupriyanov/slotline-core';
-import { useClassNames, useFlow } from '../context';
+import { useClassNames, useFlow, useUI } from '../context';
 
 /** The duration picker shown under the calendar, mirroring the reference design. */
 export function DurationFooter() {
-  const { state, messages, durations, actions } = useFlow();
+  const { snapshot, actions } = useFlow();
+  const { messages } = useUI();
   const cls = useClassNames();
+  const duration = snapshot.view.duration;
+
+  if (!duration.showSelector) return null;
 
   return (
     <footer className={cls('footer')}>
@@ -13,8 +17,8 @@ export function DurationFooter() {
         {messages.durationLabel}
       </span>
       <div className="sl-duration-group" role="radiogroup" aria-label={messages.durationGroupLabel}>
-        {durations.map((minutes) => {
-          const active = minutes === state.duration;
+        {duration.options.map((minutes) => {
+          const active = minutes === duration.current;
           const label = format(messages.duration, { count: minutes });
           return (
             <button

@@ -460,13 +460,12 @@
 
 .sl-skeleton {
   height: 44px;
-  background:
-    linear-gradient(
-      100deg,
-      var(--sl-skeleton-base) 30%,
-      var(--sl-skeleton-shine) 50%,
-      var(--sl-skeleton-base) 70%
-    );
+  background: linear-gradient(
+    100deg,
+    var(--sl-skeleton-base) 30%,
+    var(--sl-skeleton-shine) 50%,
+    var(--sl-skeleton-base) 70%
+  );
   background-size: 220% 100%;
   border-radius: var(--sl-radius-control);
   animation: sl-shimmer 1.4s linear infinite;
@@ -858,4 +857,14 @@
   .sl-title {
     font-size: 17px;
   }
+}
+
+/* A form can disable the field: the widget stays visible and readable, but stops
+   taking pointer input, and the parts it drives report themselves as unavailable. */
+.sl-root[data-sl-disabled='true'] {
+  pointer-events: none;
+}
+
+.sl-root[data-sl-disabled='true'] .sl-card {
+  opacity: 0.6;
 }

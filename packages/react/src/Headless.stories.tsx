@@ -1,29 +1,22 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useMemo } from 'react';
 import { SlotlineProvider } from './Slotline';
-import { useSlotlineContext } from './context';
-import { createMockAdapter, format, formatTime } from '@nickkupriyanov/slotline-core';
+import { useSlotlineContext, useUI } from './context';
+import { createMockAdapter } from '@nickkupriyanov/slotline-core';
 
 /**
- * The widget owns no data. `useSlotlineContext()` exposes the same state and
- * actions the built-in UI uses, so a fully custom front end is a few dozen lines.
+ * The widget owns no data. `useSlotlineContext()` exposes the same snapshot and
+ * actions the built-in UI renders, so a fully custom front end is a few dozen
+ * lines — and it shows exactly what the shipped widget shows.
  */
 function CustomPanel() {
-  const {
-    state,
-    messages,
-    locale,
-    timeZone,
-    monthLabel,
-    monthGrid,
-    selectedDateLabel,
-    durationLabel,
-    isDayBookable,
-    availabilityOf,
-    actions,
-  } = useSlotlineContext();
+  const { snapshot, actions } = useSlotlineContext();
+  const { messages } = useUI();
+  const view = snapshot.view;
 
-  const bookableDays = monthGrid.filter((day) => day.startsWith(state.month) && isDayBookable(day));
+  const bookableDays = view.month.grid
+    .filter((day) => day.startsWith(view.month.key))
+    .filter((day) => view.days[day]?.bookable);
 
   return (
     <div style={{ width: 420, color: 'var(--sl-text)', fontFamily: 'var(--sl-font-family)' }}>
@@ -31,11 +24,13 @@ function CustomPanel() {
         <button type="button" onClick={actions.previousMonth} style={chipStyle}>
           ←
         </button>
-        <strong style={{ fontSize: 16 }}>{monthLabel}</strong>
+        <strong style={{ fontSize: 16 }}>{view.month.label}</strong>
         <button type="button" onClick={actions.nextMonth} style={chipStyle}>
           →
         </button>
-        <span style={{ marginLeft: 'auto', fontSize: 12, opacity: 0.6 }}>{durationLabel}</span>
+        <span style={{ marginLeft: 'auto', fontSize: 12, opacity: 0.6 }}>
+          {view.duration.label}
+        </span>
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -44,41 +39,38 @@ function CustomPanel() {
             key={day}
             type="button"
             onClick={() => actions.selectDate(day)}
-            style={{ ...chipStyle, ...(state.selectedDate === day ? activeChipStyle : {}) }}
+            style={{
+              ...chipStyle,
+              ...(view.selection.date === day ? activeChipStyle : {}),
+            }}
           >
-            {day.slice(8)} · {availabilityOf(day)?.slotCount ?? 0}
+            {day.slice(8)} · {view.days[day]?.count ?? 0}
           </button>
         ))}
         {bookableDays.length === 0 && <p style={{ opacity: 0.6 }}>No open days this month.</p>}
       </div>
 
-      {state.selectedDate && (
+      {view.selection.date && (
         <div style={{ marginTop: 20 }}>
           <p style={{ fontSize: 13, opacity: 0.7, margin: '0 0 8px' }}>
-            {selectedDateLabel} ·{' '}
-            {state.slotsStatus === 'loading'
-              ? 'Loading…'
-              : format(messages.slotsCount, { count: state.slots.length })}
+            {view.time.dateLabel} · {view.slots.loading ? 'Loading…' : view.slots.countLabel}
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-            {state.slots.map((slot) => (
+            {view.slots.items.map((slot) => (
               <button
-                key={slot.start}
+                key={slot.id}
                 type="button"
                 onClick={() => actions.selectSlot(slot)}
-                style={{
-                  ...chipStyle,
-                  ...(state.selectedSlot?.start === slot.start ? activeChipStyle : {}),
-                }}
+                style={{ ...chipStyle, ...(slot.selected ? activeChipStyle : {}) }}
               >
-                {formatTime(slot.start, timeZone, locale)}
+                {slot.label}
               </button>
             ))}
           </div>
         </div>
       )}
 
-      {state.selectedSlot && (
+      {view.selection.slot && view.step === 'details' && (
         <form
           style={{ marginTop: 20, display: 'flex', gap: 8 }}
           onSubmit={(event) => {
@@ -86,39 +78,52 @@ function CustomPanel() {
             void actions.submit();
           }}
         >
-          <input
-            aria-label={messages.nameLabel}
-            placeholder={messages.nameLabel}
-            value={state.details.name}
-            onChange={(event) => actions.setDetails({ name: event.target.value })}
-            style={{ ...inputStyle, flex: 1 }}
-          />
-          <input
-            aria-label={messages.emailLabel}
-            placeholder={messages.emailLabel}
-            value={state.details.email}
-            onChange={(event) => actions.setDetails({ email: event.target.value })}
-            style={{ ...inputStyle, flex: 1 }}
-          />
+          {view.form.fields.map((field) => (
+            <input
+              key={field.name}
+              aria-label={field.label}
+              placeholder={field.label}
+              value={String(view.form.values[field.name] ?? '')}
+              onChange={(event) => actions.setValues({ [field.name]: event.target.value })}
+              onBlur={() => actions.touchField(field.name)}
+              style={{ ...inputStyle, flex: 1 }}
+            />
+          ))}
           <button
             type="submit"
             style={{ ...chipStyle, ...activeChipStyle }}
-            disabled={!state.selectedSlot}
+            disabled={!view.actions.canSubmit}
           >
-            {state.submitStatus === 'submitting' ? '…' : 'Go'}
+            {view.form.submitting ? '…' : 'Go'}
           </button>
         </form>
       )}
 
-      {state.step === 'confirmed' && (
-        <p style={{ marginTop: 18, fontSize: 14 }}>
-          {format(messages.bookedSummary, {
-            date: selectedDateLabel,
-            time: state.selectedSlot ? formatTime(state.selectedSlot.start, timeZone, locale) : '',
-            duration: durationLabel,
-          })}
-        </p>
+      {view.form.submitError && (
+        <p style={{ marginTop: 12, fontSize: 13 }}>{view.form.submitError}</p>
       )}
+
+      {view.confirmation && (
+        <p style={{ marginTop: 18, fontSize: 14 }}>{view.confirmation.summary}</p>
+      )}
+
+      {view.attempt && (
+        <div style={{ marginTop: 18, fontSize: 13 }}>
+          <strong>{view.attempt.title}</strong>
+          <p style={{ opacity: 0.7 }}>{view.attempt.description}</p>
+          {view.actions.canRetry && (
+            <button
+              type="button"
+              onClick={actions.retry}
+              style={{ ...chipStyle, ...activeChipStyle }}
+            >
+              {view.attempt.retryLabel}
+            </button>
+          )}
+        </div>
+      )}
+
+      <p style={{ marginTop: 18, fontSize: 12, opacity: 0.5 }}>{messages.progressLabel}</p>
     </div>
   );
 }
@@ -165,7 +170,7 @@ const meta: Meta<typeof HeadlessDemo> = {
     docs: {
       description: {
         component:
-          'Build your own UI on the same state machine: `useSlotlineContext()` returns the state, messages, formatters and actions.',
+          'Build your own UI on the same controller: `useSlotlineContext()` returns one snapshot and the actions, and everything rendered comes from `snapshot.view`.',
       },
     },
   },

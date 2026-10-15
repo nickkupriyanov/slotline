@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "preserve",
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "noImplicitReturns": true,
+    "types": [],
+    "paths": {
+      "@nickkupriyanov/slotline-core": ["../core/src/index.ts"],
+      "@nickkupriyanov/slotline-core/dom": ["../core/src/dom/index.ts"],
+      "@nickkupriyanov/slotline-angular": ["./src/public-api.ts"]
+    },
+    "useDefineForClassFields": false
+  },
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true
+  },
+  "include": ["src", "forms/src/**/*.ts"]
+}

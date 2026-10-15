@@ -1,6 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { BookingError } from '@nickkupriyanov/slotline-core';
 import { createTestAdapter, renderFlow } from './test/fixtures';
 
 const day = (name: RegExp | string) => screen.findByRole('gridcell', { name });
@@ -68,12 +69,13 @@ describe('<Slotline /> — booking', () => {
     expect(screen.getByText('Monday, May 4')).toBeInTheDocument();
     expect(screen.getByText('09:15 · 15 min')).toBeInTheDocument();
 
+    // The submit affordance stays reachable while the form is incomplete: the
+    // attempt is what reveals what is missing.
     const submit = screen.getByRole('button', { name: /Confirm booking/ });
-    expect(submit).toBeDisabled();
+    expect(submit).toBeEnabled();
 
     await user.type(screen.getByLabelText('Your name'), 'Ann');
     await user.type(screen.getByLabelText('Email'), 'ann@example.com');
-    await waitFor(() => expect(submit).toBeEnabled());
     await user.click(submit);
 
     expect(await screen.findByText("You're booked")).toBeInTheDocument();
@@ -84,14 +86,20 @@ describe('<Slotline /> — booking', () => {
       date: '2026-05-04',
       duration: 15,
       timeZone: 'UTC',
-      details: { name: 'Ann', email: 'ann@example.com' },
+      values: { name: 'Ann', email: 'ann@example.com' },
     });
+    expect(calls.bookings[0]?.idempotencyKey).toEqual(expect.any(String));
     expect(calls.bookings[0]?.slot).toEqual({
+      id: '2026-05-04T09:15:00Z',
       start: '2026-05-04T09:15:00Z',
       end: '2026-05-04T09:30:00.000Z',
     });
     expect(onBooked).toHaveBeenCalledWith(
-      { id: 'booking_1', inviteeEmail: 'ann@example.com' },
+      {
+        id: 'booking_1',
+        status: 'confirmed',
+        invitation: { status: 'sent', email: 'ann@example.com' },
+      },
       expect.objectContaining({ date: '2026-05-04' }),
     );
   });
@@ -112,15 +120,39 @@ describe('<Slotline /> — booking', () => {
     expect(await screen.findByText('Enter a valid email address')).toBeInTheDocument();
   });
 
-  it('surfaces adapter failures and lets the user retry', async () => {
+  it('reveals what is missing when an incomplete form is submitted', async () => {
+    const user = userEvent.setup();
+    const { calls } = renderFlow();
+
+    await user.click(await day(/Monday, May 4/));
+    await user.click(await screen.findByRole('button', { name: '09:15' }));
+
+    await user.click(screen.getByRole('button', { name: /Confirm booking/ }));
+
+    const alerts = await screen.findAllByRole('alert');
+    expect(alerts.map((alert) => alert.textContent)).toEqual([
+      'Enter your name',
+      'Enter your email',
+    ]);
+    expect(screen.queryByText("You're booked")).not.toBeInTheDocument();
+    expect(calls.bookings).toHaveLength(0);
+  });
+
+  it('surfaces a classified adapter failure and lets the user retry', async () => {
     const user = userEvent.setup();
     const onError = vi.fn();
     let attempt = 0;
     const { adapter } = createTestAdapter({
       async createBooking(request) {
         attempt += 1;
-        if (attempt === 1) throw new Error('Calendar is unreachable');
-        return { id: 'retry_ok', inviteeEmail: request.details.email };
+        if (attempt === 1) {
+          throw new BookingError({ code: 'TEMPORARY_FAILURE', message: 'Calendar is unreachable' });
+        }
+        return {
+          id: 'retry_ok',
+          status: 'confirmed',
+          invitation: { status: 'sent', email: request.values.email },
+        };
       },
     });
 
@@ -138,6 +170,47 @@ describe('<Slotline /> — booking', () => {
 
     await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByText("You're booked")).toBeInTheDocument();
+  });
+
+  it('treats an unclassified failure as an unknown outcome and offers a safe retry', async () => {
+    const user = userEvent.setup();
+    const onError = vi.fn();
+    const { adapter, calls } = createTestAdapter();
+    let attempt = 0;
+    adapter.createBooking = async (request) => {
+      calls.bookings.push(request);
+      attempt += 1;
+      if (attempt === 1) throw new Error('Calendar is unreachable');
+      return {
+        id: 'retry_ok',
+        status: 'confirmed',
+        invitation: { status: 'sent', email: 'ann@example.com' },
+      };
+    };
+
+    renderFlow({ adapter, onError });
+
+    await user.click(await day(/Monday, May 4/));
+    await user.click(await screen.findByRole('button', { name: '09:15' }));
+    await user.type(screen.getByLabelText('Your name'), 'Ann');
+    await user.type(screen.getByLabelText('Email'), 'ann@example.com');
+    await user.click(screen.getByRole('button', { name: /Confirm booking/ }));
+
+    // A rejection without a verdict is not a failure: the record may well exist.
+    expect(await screen.findByText('We could not confirm the result')).toBeInTheDocument();
+    expect(screen.queryByText("You're booked")).not.toBeInTheDocument();
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'UNKNOWN_OUTCOME' }),
+      expect.objectContaining({ phase: 'booking', outcome: 'unknown' }),
+    );
+
+    // Repeating reuses the frozen request and its key.
+    await user.click(screen.getByRole('button', { name: 'Send the same request again' }));
+
+    expect(await screen.findByText("You're booked")).toBeInTheDocument();
+    expect(calls.bookings).toHaveLength(2);
+    expect(calls.bookings[1]?.idempotencyKey).toBe(calls.bookings[0]?.idempotencyKey);
+    expect(calls.bookings[1]?.slot.start).toBe(calls.bookings[0]?.slot.start);
   });
 
   it('goes back to the previous step', async () => {

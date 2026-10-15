@@ -1,5 +1,17 @@
 import { useEffect, useState } from 'react';
+import {
+  DARK_SCHEME_QUERY,
+  canMatchMedia,
+  matchesMediaQuery,
+  observeMediaQuery,
+} from '@nickkupriyanov/slotline-core/dom';
 import type { SlotlineTheme } from '../types';
+
+/** What the host says, defaulting to the widget's own dark theme. */
+function hostTheme(): 'dark' | 'light' {
+  if (!canMatchMedia()) return 'dark';
+  return matchesMediaQuery(DARK_SCHEME_QUERY) ? 'dark' : 'light';
+}
 
 /**
  * Resolves `system` to a concrete theme and keeps it in sync with the OS.
@@ -7,20 +19,14 @@ import type { SlotlineTheme } from '../types';
  * needs two token blocks.
  */
 export function useResolvedTheme(theme: SlotlineTheme): 'dark' | 'light' {
-  const [systemTheme, setSystemTheme] = useState<'dark' | 'light'>(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return 'dark';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
+  const [resolved, setResolved] = useState(hostTheme);
 
   useEffect(() => {
     if (theme !== 'system') return;
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-    const list = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = (event: MediaQueryListEvent) => setSystemTheme(event.matches ? 'dark' : 'light');
-    list.addEventListener('change', handler);
-    return () => list.removeEventListener('change', handler);
+    return observeMediaQuery(DARK_SCHEME_QUERY, (matches) =>
+      setResolved(matches ? 'dark' : 'light'),
+    );
   }, [theme]);
 
-  if (theme === 'system') return systemTheme;
-  return theme;
+  return theme === 'system' ? resolved : theme;
 }
