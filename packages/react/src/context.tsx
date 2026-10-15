@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext } from 'react';
+import { createContext, useCallback, useContext, useMemo } from 'react';
 import {
   SLOT_CLASS,
   cx,
@@ -9,6 +9,7 @@ import {
   type SlotlineMessages,
 } from '@nickkupriyanov/slotline-core';
 import { cssAnimations } from './animations/css';
+import { DEFAULT_COMPONENTS, type SlotlineComponents } from './parts';
 import type { AnimationKit, SlotlineClassSlot, SlotlineTheme } from './types';
 
 /* -------------------------------------------------------------------------- */
@@ -62,6 +63,8 @@ export interface SlotlineUIContextValue {
   messages: SlotlineMessages;
   locale: string;
   theme: Exclude<SlotlineTheme, 'system'>;
+  /** Parts the application replaced; anything absent falls back to the default. */
+  components?: SlotlineComponents;
 }
 
 export const UIContext = createContext<SlotlineUIContextValue>({
@@ -76,6 +79,17 @@ export const UIContext = createContext<SlotlineUIContextValue>({
 
 export function useUI(): SlotlineUIContextValue {
   return useContext(UIContext);
+}
+
+/**
+ * The parts this widget renders, with the defaults filled in.
+ *
+ * A replacement is per part and independent of `classNames`: a custom slot keeps
+ * the library's classes unless it chooses otherwise.
+ */
+export function useComponents(): Required<SlotlineComponents> {
+  const { components } = useContext(UIContext);
+  return useMemo(() => ({ ...DEFAULT_COMPONENTS, ...components }), [components]);
 }
 
 export function useAnimations(): AnimationKit {

@@ -1,6 +1,7 @@
 import type {
   AvailabilityAdapter,
   BookingAdapter,
+  BookingFieldConfig,
   BookingFormMode,
   BookingMode,
   BookingChangeMetadata,
@@ -10,6 +11,7 @@ import type {
   BookingRequest,
   BookingResult,
   BookingSelection,
+  BookingValues,
   DefaultBookingValues,
   InitialBookingAttempt,
   SlotlineClassSlot,
@@ -29,7 +31,7 @@ export interface SlotlineComponentInputs<TValues = DefaultBookingValues> {
    * The adapter the flow works against. A `selection` needs availability and slots;
    * a `booking` also persists them, and the controller enforces the pairing.
    */
-  adapter: BookingAdapter<TValues> | AvailabilityAdapter<TValues>;
+  adapter: BookingAdapter<TValues, any, any> | AvailabilityAdapter<any, any>;
   /** `selection` stops at the offer and never creates anything. Default: `booking`. */
   mode?: BookingMode;
   /** `skip` leaves the values to the application, keeping the resume and a confirmation. */
@@ -38,6 +40,14 @@ export interface SlotlineComponentInputs<TValues = DefaultBookingValues> {
   selection?: BookingSelection;
   /** Uncontrolled initial selection, verified against availability before use. */
   defaultSelection?: BookingSelection;
+  /** The built-in form's fields, in display order. Default: name and email. */
+  fields?: readonly BookingFieldConfig[];
+  /** Controlled form values. */
+  values?: BookingValues;
+  /** Initial values, applied when the scenario is created. */
+  defaultValues?: BookingValues;
+  /** The application's own validation, on top of the field rules. */
+  validateValues?: (values: BookingValues) => Record<string, string> | undefined;
   /** Duration options in minutes. Default: `[15, 30, 60]`. */
   durations?: number[];
   /** Controlled duration, in minutes. */

@@ -101,6 +101,8 @@ function configOf<TValues>(
     ...(props.title === undefined ? {} : { title: props.title }),
     ...(props.context === undefined ? {} : { context: props.context }),
     ...(props.formMode === undefined ? {} : { formMode: props.formMode }),
+    ...(props.fields === undefined ? {} : { fields: props.fields }),
+    ...(props.validateValues === undefined ? {} : { validateValues: props.validateValues }),
   };
 }
 
@@ -128,6 +130,9 @@ function inputsOf<TValues>(
   if (props.timeFormat !== undefined) inputs.timeFormat = props.timeFormat;
   else if (props.defaultTimeFormat !== undefined)
     inputs.defaultTimeFormat = props.defaultTimeFormat;
+
+  if (props.values !== undefined) inputs.values = props.values as TValues;
+  else if (props.defaultValues !== undefined) inputs.defaultValues = props.defaultValues as TValues;
 
   if (props.selection !== undefined) inputs.selection = props.selection;
   else if (props.defaultSelection !== undefined) inputs.defaultSelection = props.defaultSelection;
@@ -170,6 +175,7 @@ export function useBookingController<TValues = DefaultBookingValues>(
           propsRef.current.onContextChange?.(context, metadata),
         onSelectionChange: (selection, metadata) =>
           propsRef.current.onSelectionChange?.(selection, metadata),
+        onValuesChange: (values, metadata) => propsRef.current.onValuesChange?.(values, metadata),
       },
     });
   }
@@ -239,6 +245,7 @@ export function useSlotlineUI<TValues = DefaultBookingValues>(
       messages,
       locale,
       theme,
+      ...(props.components === undefined ? {} : { components: props.components }),
     }),
     [
       props.animations,
@@ -248,6 +255,7 @@ export function useSlotlineUI<TValues = DefaultBookingValues>(
       props.trapFocus,
       props.onDismiss,
       props.onCheckStatus,
+      props.components,
       messages,
       locale,
       theme,

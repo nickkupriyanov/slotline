@@ -9,6 +9,8 @@
 
 export { SlotlineService } from './lib/slotline.service';
 export { SLOTLINE_FORM_STATE, type SlotlineFormState } from './lib/form-bridge';
+export { SlotlinePartDirective } from './lib/parts';
+export type { SlotlinePartContexts, SlotlinePartName } from './lib/parts';
 export { SlotlineComponent } from './lib/slotline.component';
 export type {
   BookedEvent,

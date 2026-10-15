@@ -94,6 +94,89 @@ export const adapter: BookingAdapter = {
 
 Set `theme="light" | "dark" | "system"` on the component; the resolved theme lands on `.sl-root[data-sl-theme]`.
 
+## Time zone and format controls
+
+Both are optional and off by default, for applications that already own such a
+control:
+
+```tsx
+<Slotline
+  adapter={adapter}
+  showTimeZoneSelector
+  showTimeFormatSelector
+  timeZones={['UTC', 'Europe/Berlin']}
+/>
+```
+
+Without `timeZones` the list comes from the runtime, always including UTC and the
+current zone. `onTimeZoneChange` and `onTimeFormatChange` report what was picked; the
+format switch makes no request, and a zone change re-reads the day because the same
+instant may belong to another date in the new zone.
+
+## Container adaptation
+
+The widget adapts to its container, not to the viewport. `layout="adaptive"` widens
+the card to `--sl-width-adaptive` and from 720 px of container width composes the
+panel in two columns:
+
+```tsx
+<Slotline adapter={adapter} layout="adaptive" />
+```
+
+Tokens (declare them on the widget element or a wrapper that targets `.sl-root` —
+the widget declares its own defaults):
+
+| Token                 | Default   | Meaning                                             |
+| --------------------- | --------- | --------------------------------------------------- |
+| `--sl-width`          | `400px`   | width in the `compact` layout                       |
+| `--sl-width-adaptive` | `800px`   | width in the `adaptive` layout                      |
+| `--sl-max-height`     | `none`    | when set, the middle area scrolls                   |
+| `--sl-slot-columns`   | automatic | offers per row; wins over the container's own count |
+
+The automatic count follows the container: up to 300 px one column, up to 380 px two,
+above three.
+
+## Replacing parts
+
+`components` swaps one part of the standard widget without re-implementing the rest:
+
+```tsx
+<Slotline
+  adapter={adapter}
+  components={{
+    Slot: ({ slot, slotProps, children }) => (
+      <button {...slotProps}>
+        {children} <span className="price">{slot.data?.price as string}</span>
+      </button>
+    ),
+  }}
+/>
+```
+
+Every part receives its own data and the actions it triggers; the defaults are
+exported (`DefaultSlot`, `DefaultForm`, …) so a part can be wrapped instead of
+rewritten. `classNames` keeps working independently, and a replaced `Form` uses the
+same values, errors and submission as the built-in one.
+
+The form itself is configurable without replacing anything:
+
+```tsx
+<Slotline
+  adapter={adapter}
+  fields={[
+    { name: 'phone', label: 'Phone', type: 'tel', required: true },
+    {
+      name: 'topic',
+      label: 'What is it about?',
+      type: 'select',
+      required: true,
+      options: [{ value: 'intro', label: 'Intro call' }],
+    },
+  ]}
+  defaultValues={{ phone: '+49 30 1234567' }}
+/>
+```
+
 ## Custom UI
 
 ```tsx

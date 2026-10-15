@@ -1,18 +1,15 @@
-import { useClassNames, useFlow } from '../context';
+import { useClassNames } from '../context';
 import { CheckIcon } from './icons';
+import type { ConfirmationPartProps } from '../parts';
 
 /**
- * Step 4 — confirmation.
+ * The confirmation.
  *
  * Every line comes from the view, which itself comes from what the backend
  * reported: the invitation appears only for a status the adapter actually sent.
  */
-export function ConfirmedStep() {
-  const { snapshot, actions } = useFlow();
+export function ConfirmedStep({ confirmation, actions }: ConfirmationPartProps) {
   const cls = useClassNames();
-  const confirmation = snapshot.view.confirmation;
-
-  if (!confirmation) return null;
 
   return (
     <div className={cls('confirmation')}>

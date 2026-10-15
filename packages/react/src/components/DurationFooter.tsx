@@ -1,12 +1,16 @@
 import { format } from '@nickkupriyanov/slotline-core';
-import { useClassNames, useFlow, useUI } from '../context';
+import { useClassNames, useUI } from '../context';
+import type { DurationFooterPartProps } from '../parts';
 
-/** The duration picker shown under the calendar, mirroring the reference design. */
-export function DurationFooter() {
-  const { snapshot, actions } = useFlow();
+/**
+ * The duration picker under the calendar.
+ *
+ * It holds no duration of its own: picking one calls the controller's prepared
+ * action, which is what keeps a replacement part honest.
+ */
+export function DurationFooter({ duration, onSelect }: DurationFooterPartProps) {
   const { messages } = useUI();
   const cls = useClassNames();
-  const duration = snapshot.view.duration;
 
   if (!duration.showSelector) return null;
 
@@ -29,7 +33,7 @@ export function DurationFooter() {
               aria-label={label}
               className="sl-duration-pill"
               data-state={active ? 'active' : 'idle'}
-              onClick={() => actions.setDuration(minutes)}
+              onClick={() => onSelect(minutes)}
             >
               {label}
             </button>

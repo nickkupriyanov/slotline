@@ -183,3 +183,79 @@ body {
 .checkout__result {
   margin: 0;
 }
+
+/* Services, resources and a custom offer card. */
+.services {
+  display: grid;
+  gap: 12px;
+  width: min(900px, 100%);
+}
+
+.services h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.services__hint {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.65;
+}
+
+.services__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.services__field {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+}
+
+.services__field select {
+  min-width: 180px;
+  padding: 9px 11px;
+  font: inherit;
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+}
+
+.services__pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: start;
+}
+
+.services__widget {
+  display: grid;
+  gap: 8px;
+}
+
+.services__caption {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.services__result {
+  margin: 0;
+  font-size: 13px;
+}
+
+.offer__price {
+  display: block;
+  font-size: 11px;
+  opacity: 0.7;
+}

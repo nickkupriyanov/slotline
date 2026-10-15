@@ -1,4 +1,5 @@
-import { useClassNames, useFlow, useUI } from '../context';
+import { useClassNames, useUI } from '../context';
+import type { AttemptPartProps } from '../parts';
 
 /**
  * The service screen of an operation: the request has left, and the flow is
@@ -8,13 +9,9 @@ import { useClassNames, useFlow, useUI } from '../context';
  * what was actually sent — and offers a repeat only when the adapter promised that
  * repeating is safe.
  */
-export function AttemptStep() {
-  const { snapshot, actions } = useFlow();
-  const { messages, onCheckStatus } = useUI();
+export function AttemptStep({ attempt, actions }: AttemptPartProps) {
+  const { messages } = useUI();
   const cls = useClassNames();
-  const attempt = snapshot.view.attempt;
-
-  if (!attempt) return null;
 
   return (
     <div className={cls('empty')} data-attempt={attempt.status}>
@@ -41,8 +38,8 @@ export function AttemptStep() {
         </button>
       ) : null}
 
-      {attempt.canCheckStatus && onCheckStatus ? (
-        <button type="button" className={cls('secondaryButton')} onClick={() => onCheckStatus()}>
+      {attempt.canCheckStatus && actions.checkStatus ? (
+        <button type="button" className={cls('secondaryButton')} onClick={actions.checkStatus}>
           {attempt.checkStatusLabel}
         </button>
       ) : null}

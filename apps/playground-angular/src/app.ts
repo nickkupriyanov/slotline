@@ -8,6 +8,7 @@ import {
 } from '@nickkupriyanov/slotline-angular';
 import { adapter as mockAdapter, unknownOutcomeAdapter } from './adapter';
 import { FormExample } from './form-example';
+import { ServicesExample } from './services-example';
 import { Gallery } from './gallery';
 
 /**
@@ -16,7 +17,7 @@ import { Gallery } from './gallery';
  */
 @Component({
   selector: 'app-root',
-  imports: [SlotlineComponent, Gallery, FormExample],
+  imports: [SlotlineComponent, Gallery, FormExample, ServicesExample],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="page">
@@ -78,6 +79,7 @@ import { Gallery } from './gallery';
 
       @if (!gallery()) {
         <app-form-example />
+        <app-services-example />
       }
 
       <section class="log">

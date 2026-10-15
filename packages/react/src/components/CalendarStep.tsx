@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, monthKeyOf, weekdayIndex } from '@nickkupriyanov/slotline-core';
-import { useClassNames, useFlow, useUI } from '../context';
+import { useClassNames, useComponents, useFlow, useUI } from '../context';
 import { ChevronLeftIcon, ChevronRightIcon } from './icons';
 
 function chunk<T>(values: T[], size: number): T[][] {
@@ -23,6 +23,7 @@ function chunk<T>(values: T[], size: number): T[][] {
 export function CalendarStep() {
   const { snapshot, actions } = useFlow();
   const { messages } = useUI();
+  const { DayContent, Error } = useComponents();
   const cls = useClassNames();
   const view = snapshot.view;
   const { month, days } = view;
@@ -163,12 +164,13 @@ export function CalendarStep() {
         ))}
       </div>
 
-      <div className={cls('error')} role="alert">
-        <span>{month.error}</span>
-        <button type="button" className="sl-link-button" onClick={actions.reloadAvailability}>
-          {messages.retry}
-        </button>
-      </div>
+      {month.status === 'error' ? (
+        <Error
+          message={month.error ?? ''}
+          retryLabel={messages.retry}
+          onRetry={actions.reloadAvailability}
+        />
+      ) : null}
 
       <div
         ref={gridRef}
@@ -207,12 +209,7 @@ export function CalendarStep() {
                     actions.selectDate(day);
                   }}
                 >
-                  <span className="sl-day-number">{Number(day.slice(8, 10))}</span>
-                  <span
-                    className={cls('dayDot')}
-                    aria-hidden="true"
-                    data-visible={bookable || undefined}
-                  />
+                  <DayContent day={day} dayView={cell} />
                 </button>
               );
             })}
