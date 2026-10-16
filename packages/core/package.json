@@ -1,6 +1,6 @@
 {
   "name": "@nickkupriyanov/slotline-core",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "description": "Framework-free core of the Slotline booking widget: the controller, the derived view model, the flow reducer, date and time-zone helpers, copy, class names and the booking adapter contract.",
   "keywords": [
     "booking",
