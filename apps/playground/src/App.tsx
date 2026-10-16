@@ -71,6 +71,16 @@ export function App() {
       createMockAdapter({
         timeZone: resolvedTimeZone,
         horizonDays: 90,
+        // What a real backend returns with a created record: the playground shows
+        // the confirmation whole, including the links the application own.
+        resultExtras: {
+          location: 'Studio 2, Torstraße 14',
+          instructions: 'Ring the bell twice and ask for Ann.',
+          joinUrl: 'https://meet.example.com/slotline-demo',
+          calendarUrl: 'https://calendar.example.com/slotline-demo.ics',
+          rescheduleUrl: 'https://app.example.com/bookings/demo/reschedule',
+          cancelUrl: 'https://app.example.com/bookings/demo/cancel',
+        },
       }),
     [resolvedTimeZone],
   );

@@ -868,3 +868,35 @@
 .sl-root[data-sl-disabled='true'] .sl-card {
   opacity: 0.6;
 }
+
+/* The confirmation shows what the backend actually returned: a place, instructions
+   and the links it provided. Nothing is rendered for data that is absent. */
+.sl-confirmation-place {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.sl-confirmation-place-label {
+  opacity: 0.6;
+}
+
+.sl-confirmation-instructions {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.sl-confirmation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sl-confirmation-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}

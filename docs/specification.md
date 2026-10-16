@@ -802,17 +802,18 @@ interface BookingResult {
 
 Новые ключи появляются одновременно в core, английском и русском словарях. Биндинги не вводят собственные тексты для общих состояний.
 
-| Группа                        | Новые ключи                                                                                                    |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Выполнение попытки            | `attemptPendingTitle`, `attemptPendingDescription`, `attemptSummaryLabel`                                      |
-| Неизвестный исход             | `attemptUnknownTitle`, `attemptUnknownDescription`, `attemptUnknownInstructions`                               |
-| Повтор                        | `retryBookingLabel`, `retryBookingDescription`, `retryUnavailableDescription`, `retryWindowExpiredDescription` |
-| Проверка исхода               | `checkBookingStatusLabel`                                                                                      |
-| Ошибки формы                  | `formErrorsSummaryTitle`, `unmappedFieldErrorDescription`                                                      |
-| Приглашение                   | `invitationSentDescription`, `invitationPendingDescription`, `invitationFailedDescription`                     |
-| Часовой пояс                  | `timeZoneLabel`, `timeZoneSearchLabel`, `timeZoneSearchPlaceholder`, `timeZoneNoResultsDescription`            |
-| Формат времени                | `timeFormatLabel`, `timeFormat12HourLabel`, `timeFormat24HourLabel`                                            |
-| Повторяющееся локальное время | `slotUtcOffsetDescription`                                                                                     |
+| Группа                        | Новые ключи                                                                                                                                      |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Выполнение попытки            | `attemptPendingTitle`, `attemptPendingDescription`, `attemptSummaryLabel`                                                                        |
+| Неизвестный исход             | `attemptUnknownTitle`, `attemptUnknownDescription`, `attemptUnknownInstructions`                                                                 |
+| Повтор                        | `retryBookingLabel`, `retryBookingDescription`, `retryUnavailableDescription`, `retryWindowExpiredDescription`                                   |
+| Проверка исхода               | `checkBookingStatusLabel`                                                                                                                        |
+| Ошибки формы                  | `formErrorsSummaryTitle`, `unmappedFieldErrorDescription`                                                                                        |
+| Приглашение                   | `invitationSentDescription`, `invitationPendingDescription`, `invitationFailedDescription`                                                       |
+| Подтверждение                 | `confirmationLocationLabel`, `confirmationJoinLabel`, `confirmationAddToCalendarLabel`, `confirmationRescheduleLabel`, `confirmationCancelLabel` |
+| Часовой пояс                  | `timeZoneLabel`, `timeZoneSearchLabel`, `timeZoneSearchPlaceholder`, `timeZoneNoResultsDescription`                                              |
+| Формат времени                | `timeFormatLabel`, `timeFormat12HourLabel`, `timeFormat24HourLabel`                                                                              |
+| Повторяющееся локальное время | `slotUtcOffsetDescription`                                                                                                                       |
 
 Тексты с переменными используют единый типизированный механизм подстановки: email получателя, UTC-смещение и другие значения. Произвольный HTML из словарей не рендерится.
 

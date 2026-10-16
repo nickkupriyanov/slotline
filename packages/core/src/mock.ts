@@ -61,6 +61,12 @@ export interface MockAdapterOptions {
    * returns the booking that was created the first time.
    */
   createBookingFailures?: MockFailure[];
+  /**
+   * Extra fields of the created record — a place, instructions, a meeting link, the
+   * application's own reschedule and cancel URLs. Whatever is absent is simply not
+   * rendered.
+   */
+  resultExtras?: Partial<BookingResult>;
 }
 
 const DEFAULTS = {
@@ -170,6 +176,7 @@ export function createMockAdapter(options: MockAdapterOptions = {}): BookingAdap
       id: `mock_${digest}${suffix}`,
       status: 'confirmed',
       invitation: { status: 'sent', email: request.values.email },
+      ...(options.resultExtras ?? {}),
     };
   };
 

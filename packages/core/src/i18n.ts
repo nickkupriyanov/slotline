@@ -60,6 +60,12 @@ const en: SlotlineMessages = {
   unmappedFieldErrorDescription: 'The server reported an error for “{field}”.',
   fieldRequired: '{field} is required.',
 
+  confirmationLocationLabel: 'Where',
+  confirmationJoinLabel: 'Join the meeting',
+  confirmationAddToCalendarLabel: 'Add to calendar',
+  confirmationRescheduleLabel: 'Reschedule',
+  confirmationCancelLabel: 'Cancel',
+
   invitationSentDescription: 'Calendar invite sent to {email}.',
   invitationPendingDescription: 'The calendar invite to {email} is being sent.',
   invitationFailedDescription: 'The calendar invite to {email} could not be sent.',
@@ -126,6 +132,12 @@ const ru: SlotlineMessages = {
   formErrorsSummaryTitle: 'Исправьте выделенные поля',
   unmappedFieldErrorDescription: 'Сервер сообщил об ошибке для поля «{field}».',
   fieldRequired: 'Заполните поле «{field}».',
+
+  confirmationLocationLabel: 'Где',
+  confirmationJoinLabel: 'Подключиться к встрече',
+  confirmationAddToCalendarLabel: 'Добавить в календарь',
+  confirmationRescheduleLabel: 'Перенести',
+  confirmationCancelLabel: 'Отменить',
 
   invitationSentDescription: 'Приглашение отправлено на {email}.',
   invitationPendingDescription: 'Приглашение на {email} отправляется.',
