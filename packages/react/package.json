@@ -1,6 +1,6 @@
 {
   "name": "@nickkupriyanov/slotline-react",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Themable, accessible React booking widget: month calendar → time slots → details → confirmation. CSS-variable theming, dark theme by default, soft animations, bring-your-own backend.",
   "keywords": [
     "react",
