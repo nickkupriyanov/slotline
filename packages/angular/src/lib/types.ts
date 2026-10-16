@@ -1,6 +1,8 @@
 import type {
   AvailabilityAdapter,
   BookingAdapter,
+  BookingFormMode,
+  BookingMode,
   BookingChangeMetadata,
   BookingContext,
   BookingError,
@@ -28,6 +30,14 @@ export interface SlotlineComponentInputs<TValues = DefaultBookingValues> {
    * a `booking` also persists them, and the controller enforces the pairing.
    */
   adapter: BookingAdapter<TValues> | AvailabilityAdapter<TValues>;
+  /** `selection` stops at the offer and never creates anything. Default: `booking`. */
+  mode?: BookingMode;
+  /** `skip` leaves the values to the application, keeping the resume and a confirmation. */
+  formMode?: BookingFormMode;
+  /** Controlled selection: the offer the application owns. */
+  selection?: BookingSelection;
+  /** Uncontrolled initial selection, verified against availability before use. */
+  defaultSelection?: BookingSelection;
   /** Duration options in minutes. Default: `[15, 30, 60]`. */
   durations?: number[];
   /** Controlled duration, in minutes. */
@@ -76,6 +86,11 @@ export interface TimeFormatChangeEvent {
 
 export interface ContextChangeEvent {
   context: BookingContext;
+  metadata: BookingChangeMetadata;
+}
+
+export interface SelectionChangeEvent {
+  selection: BookingSelection;
   metadata: BookingChangeMetadata;
 }
 

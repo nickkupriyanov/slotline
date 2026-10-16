@@ -8,12 +8,14 @@
  */
 
 export { SlotlineService } from './lib/slotline.service';
+export { SLOTLINE_FORM_STATE, type SlotlineFormState } from './lib/form-bridge';
 export { SlotlineComponent } from './lib/slotline.component';
 export type {
   BookedEvent,
   ContextChangeEvent,
   DurationChangeEvent,
   FailedEvent,
+  SelectionChangeEvent,
   SlotlineComponentInputs,
   TimeFormatChangeEvent,
   TimeZoneChangeEvent,

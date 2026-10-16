@@ -106,3 +106,80 @@ body {
   letter-spacing: 0.08em;
   opacity: 0.6;
 }
+
+/* A reactive form that treats the widget as one of its controls. */
+.checkout {
+  display: grid;
+  gap: 12px;
+  width: min(560px, 100%);
+}
+
+.checkout h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.checkout__hint {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.65;
+}
+
+.checkout form {
+  display: grid;
+  gap: 14px;
+}
+
+.checkout__field {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+}
+
+.checkout__field input {
+  padding: 9px 11px;
+  font: inherit;
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+}
+
+.checkout__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.checkout__actions button {
+  padding: 9px 14px;
+  font: inherit;
+  font-size: 13px;
+  color: #fff;
+  background: var(--sl-accent);
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.checkout__actions button[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.checkout__choice,
+.checkout__result {
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.checkout__result {
+  margin: 0;
+}

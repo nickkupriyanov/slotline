@@ -791,6 +791,51 @@ describe('controller · controlled values', () => {
 
     expect(controller.getSnapshot().view.settings.timeFormat).toBe('24h');
   });
+
+  it('accepts the echo of a fresh offer without asking the adapter again', async () => {
+    const { controller, calls, inputs } = createHarness({ inputs: { selection: null } });
+    controller.start();
+    await flush();
+    controller.actions.selectDate(DAY);
+    inputs({ selection: { date: DAY, slot: null } });
+    await flush();
+    const slotsBefore = calls.slots;
+
+    controller.actions.selectSlot(SLOT_A);
+    inputs({ selection: { date: DAY, slot: SLOT_A } });
+
+    const view = controller.getSnapshot().view;
+    expect(view.step).toBe('details');
+    expect(view.selection).toMatchObject({ status: 'valid', usable: true });
+    expect(calls.slots).toBe(slotsBefore);
+  });
+
+  it('verifies a selection that did not come from its own list', async () => {
+    const { controller, calls, inputs } = createHarness({ inputs: { selection: null } });
+    controller.start();
+    await flush();
+    const slotsBefore = calls.slots;
+
+    inputs({ selection: { date: DAY, slot: SLOT_A } });
+    await flush();
+
+    expect(calls.slots).toBe(slotsBefore + 1);
+    expect(controller.getSnapshot().view.selection.status).toBe('valid');
+  });
+
+  it('applies an uncontrolled selection straight away', async () => {
+    const { controller } = createHarness();
+    controller.start();
+    await flush();
+
+    controller.actions.selectDate(DAY);
+    await flush();
+    controller.actions.selectSlot(SLOT_A);
+
+    const view = controller.getSnapshot().view;
+    expect(view.step).toBe('details');
+    expect(view.selection.slot?.id).toBe(SLOT_A.id);
+  });
 });
 
 /* -------------------------------------------------------------------------- */

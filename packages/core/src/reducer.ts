@@ -15,6 +15,7 @@
  *   key can settle it, so a late response can never be mistaken for another one.
  */
 import { DEFAULT_BOOKING_FIELDS, createEmptyValues } from './fields';
+import { DEFAULT_MODE, type BookingMode } from './config';
 import type {
   BookingAttemptOutcome,
   BookingErrorCode,
@@ -57,6 +58,8 @@ export interface BookingAttemptState {
 }
 
 export interface BookingState {
+  /** The flow's mode, fixed at creation: a selection ends at the offer. */
+  mode: BookingMode;
   step: SlotlineStep;
   /** `1` when moving forward, `-1` when going back — drives the transition direction. */
   direction: 1 | -1;
@@ -94,6 +97,7 @@ export interface BookingState {
 }
 
 export interface CreateBookingStateOptions {
+  mode?: BookingMode;
   duration: number;
   month: string;
   values?: BookingValues;
@@ -104,6 +108,7 @@ export interface CreateBookingStateOptions {
 }
 
 export function createBookingState({
+  mode = DEFAULT_MODE,
   duration,
   month,
   values,
@@ -111,6 +116,7 @@ export function createBookingState({
   selection = null,
 }: CreateBookingStateOptions): BookingState {
   return {
+    mode,
     step: attempt ? 'attempt' : 'date',
     direction: 1,
     month,
@@ -151,6 +157,17 @@ export type BookingAction =
   | { type: 'slotsFailed'; token: number; error: string }
   | { type: 'selectSlot'; slot: TimeSlot }
   | { type: 'selectionVerifying'; reason: SelectionChangeReason; date?: string }
+  | {
+      type: 'selectionPreset';
+      date: string;
+      slot: TimeSlot | null;
+      /**
+       * `valid` is the echo of a proposal the controller made from data it had
+       * just fetched; anything else has to be confirmed against availability.
+       */
+      status?: 'verifying' | 'valid';
+      reason?: SelectionChangeReason;
+    }
   | { type: 'selectionRejected'; reason: SelectionChangeReason }
   | { type: 'clearSelection'; reason: SelectionChangeReason }
   | { type: 'contextChanged' }
@@ -321,7 +338,9 @@ export function bookingReducer(state: BookingState, action: BookingAction): Book
     case 'selectSlot':
       return {
         ...state,
-        step: 'details',
+        // A selection is complete once an offer is picked; a booking still has to
+        // collect its details.
+        step: state.mode === 'selection' ? 'time' : 'details',
         direction: 1,
         scenarioId: state.scenarioId + 1,
         selectedSlot: normalizeSlot(action.slot),
@@ -345,6 +364,42 @@ export function bookingReducer(state: BookingState, action: BookingAction): Book
         slotsError: null,
         selectionNonce: state.selectionNonce + 1,
       };
+
+    case 'selectionPreset': {
+      // The value arrives from outside, so it is trusted only as far as the owner
+      // says: a fresh echo of our own proposal is already confirmed, anything else
+      // is re-checked against availability first.
+      const verifying = action.slot !== null && action.status !== 'valid';
+      const settled =
+        state.step === 'attempt' || state.step === 'confirmed'
+          ? state.step
+          : action.slot
+            ? // A selection is complete once an offer is picked; a booking still has
+              // to collect its details.
+              state.mode === 'selection'
+              ? 'time'
+              : 'details'
+            : 'time';
+      return {
+        ...state,
+        step: settled,
+        direction: 1,
+        selectedDate: action.date,
+        selectedSlot: action.slot ? normalizeSlot(action.slot) : null,
+        selectionStatus: action.slot ? (verifying ? 'verifying' : 'valid') : 'none',
+        selectionReason: action.reason ?? null,
+        // Only a preset that still has to be checked asks the flow to look again:
+        // the echo of a fresh proposal is already confirmed by the list it came
+        // from, and a day that did not move needs no new request either.
+        ...(verifying || action.date !== state.selectedDate
+          ? { selectionNonce: state.selectionNonce + 1 }
+          : {}),
+        scenarioId: state.scenarioId + 1,
+        ...(verifying ? { slots: [], slotsStatus: 'loading' as LoadStatus, slotsError: null } : {}),
+        submitStatus: state.attempt ? state.submitStatus : 'idle',
+        submitError: null,
+      };
+    }
 
     case 'selectionRejected':
       if (!state.selectedSlot) return state;

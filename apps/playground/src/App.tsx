@@ -7,6 +7,7 @@ import {
   type BookingResult,
 } from '@nickkupriyanov/slotline-react';
 import { Slotline as MotionSlotline } from '@nickkupriyanov/slotline-react/motion';
+import { SelectionFormExample } from './form-example';
 import '@nickkupriyanov/slotline-react/styles.css';
 
 /** Custom properties are not part of `CSSProperties`, so they get their own helper. */
@@ -183,6 +184,8 @@ export function App() {
           )}
         </aside>
       </main>
+
+      <SelectionFormExample />
     </div>
   );
 }

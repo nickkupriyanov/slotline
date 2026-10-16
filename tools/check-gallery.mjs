@@ -6,7 +6,9 @@
  * The gallery drives five real widgets to five different screens through the
  * controller's own actions, so it is the one place where "the binding renders every
  * state" is visible outside jsdom — and where the driver a consumer would write for
- * a guided tour is exercised end to end.
+ * a guided tour is exercised end to end. The second pass drives the reactive-form
+ * example, which is where the `/forms` control value accessor meets a real form in a
+ * real browser.
  *
  * It serves the built playground itself, so no preview server is needed:
  *
@@ -73,6 +75,43 @@ async function serve(directory) {
 }
 
 const EXPECTED = ['date', 'time', 'details', 'attempt', 'confirmed'];
+
+/** Drives the reactive-form example: the form owns the value, the button, the rest. */
+const FORM_PROBE = `
+(async () => {
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const deadline = Date.now() + 20000;
+  const section = document.querySelector('.checkout');
+  if (!section) return { error: 'the form example is not rendered' };
+
+  const cells = () => [...section.querySelectorAll('[role="gridcell"]')];
+  while (Date.now() < deadline && cells().length === 0) await sleep(100);
+
+  const day = cells().find((cell) => cell.getAttribute('aria-disabled') !== 'true');
+  day?.click();
+  while (Date.now() < deadline && section.querySelectorAll('.sl-slot').length === 0) await sleep(100);
+
+  const offer = section.querySelector('.sl-slot');
+  offer?.click();
+  await sleep(150);
+
+  const button = section.querySelector('button[type="submit"]');
+  while (Date.now() < deadline && button?.disabled) await sleep(100);
+  button?.click();
+  await sleep(200);
+
+  const root = section.querySelector('.sl-root');
+  return {
+    offers: section.querySelectorAll('.sl-slot').length,
+    selected: section.querySelectorAll('.sl-slot.is-selected').length,
+    buttonEnabled: button?.disabled === false,
+    choice: section.querySelector('.checkout__choice')?.textContent?.trim() ?? '',
+    requested: section.querySelector('.checkout__result')?.textContent?.trim() ?? '',
+    step: root?.getAttribute('data-sl-step') ?? null,
+    hasBookingForm: section.querySelector('.sl-submit') !== null,
+  };
+})()
+`;
 
 const PROBE = `
 (async () => {
@@ -143,8 +182,12 @@ async function probe(url, expression, waitFor) {
 }
 
 let report;
+let form;
 try {
   report = await probe(url, PROBE, 'app-gallery-panel .sl-root');
+  if (!givenUrl) {
+    form = await probe(`http://127.0.0.1:${port}/`, FORM_PROBE, '.checkout .sl-root');
+  }
 } finally {
   server?.close();
 }
@@ -172,10 +215,23 @@ for (const panel of report.panels) {
 
 console.log(`screens:  ${report.panels.map((panel) => panel.step).join('  ·  ')}`);
 
+if (form) {
+  if (form.error) {
+    failures.push(form.error);
+  } else {
+    if (form.offers === 0) failures.push('the form example listed no offers');
+    if (!form.buttonEnabled) failures.push('the form button never became enabled');
+    if (!form.requested) failures.push('submitting the form reported nothing');
+    if (form.hasBookingForm) failures.push('the form example rendered a booking form');
+    if (form.step !== 'time') failures.push(`the form example left the offers: ${form.step}`);
+    console.log(`checkout: ${form.selected} selected  ·  ${form.choice}  ·  ${form.requested}`);
+  }
+}
+
 if (failures.length > 0) {
   console.error('\n✗ gallery check failed:');
   for (const failure of failures) console.error(`  · ${failure}`);
   process.exit(1);
 }
 
-console.log('\n✓ every screen of the flow renders');
+console.log('\n✓ every screen of the flow renders, and the form example submits its own value');

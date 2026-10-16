@@ -359,6 +359,21 @@ describe('deriveBookingView · form', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('deriveBookingView · progress and actions', () => {
+  it('counts the steps a user walks through', () => {
+    expect(userSteps(config())).toEqual(['date', 'time', 'details', 'confirmed']);
+    expect(userSteps(config({ mode: 'selection' }))).toEqual(['date', 'time']);
+    expect(userSteps(config({ formMode: 'skip' }))).toEqual([
+      'date',
+      'time',
+      'details',
+      'confirmed',
+    ]);
+
+    expect(view(base()).progress).toMatchObject({ current: 1, total: 4, label: 'Step 1 of 4' });
+    expect(view(reachDetails()).progress).toMatchObject({ current: 3, total: 4 });
+    expect(view(base(), { mode: 'selection' }).progress).toMatchObject({ current: 1, total: 2 });
+  });
+
   it('keeps the attempt screen out of the progress', () => {
     const derived = view(withAttempt(reachDetails(), 'unknown'));
 
@@ -378,6 +393,21 @@ describe('deriveBookingView · progress and actions', () => {
     });
     expect(view(confirmed).actions.canGoBack).toBe(false);
     expect(view(withAttempt(reachDetails(), 'unknown')).actions.canGoBack).toBe(false);
+  });
+
+  it('requires a confirmed offer, a valid form and booking mode to submit', () => {
+    expect(view(reachDetails()).actions.canSubmit).toBe(false);
+    expect(view(reachDetails({ name: 'Ann', email: 'ann@example.com' })).actions.canSubmit).toBe(
+      true,
+    );
+    expect(
+      view(reachDetails({ name: 'Ann', email: 'ann@example.com' }), { mode: 'selection' }).actions
+        .canSubmit,
+    ).toBe(false);
+    expect(
+      view(reachDetails({ name: 'Ann', email: 'ann@example.com' }), { formMode: 'skip' }).actions
+        .canSubmit,
+    ).toBe(true);
   });
 
   it('offers "book another" only after a known success', () => {
