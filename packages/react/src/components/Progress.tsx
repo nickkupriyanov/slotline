@@ -1,10 +1,9 @@
-import { useClassNames, useFlow } from '../context';
+import { useClassNames } from '../context';
+import type { ProgressPartProps } from '../parts';
 
 /** Three morphing pills: narrow while upcoming, wide once reached. */
-export function Progress() {
-  const { snapshot } = useFlow();
+export function Progress({ progress }: ProgressPartProps) {
   const cls = useClassNames();
-  const { progress } = snapshot.view;
 
   return (
     <div

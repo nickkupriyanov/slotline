@@ -289,7 +289,7 @@ pnpm build            # core, then the React and Angular bindings
 pnpm verify:install   # packs the libraries, then builds six clean consumer apps from them
 pnpm verify:install:leg react-18   # one leg of that matrix
 pnpm check:layout     # measures every step in a real browser (needs the built gallery served on :4173)
-pnpm check:gallery    # drives the Angular gallery and its form example
+pnpm check:gallery    # drives the Angular gallery, its form example and its services example
 pnpm check:layout     # every marked gallery case keeps its width (needs `pnpm preview`)
 pnpm check:hydration  # hydrates a consumer's prerendered page in a real browser
 ```

@@ -181,12 +181,74 @@ async function probe(url, expression, waitFor) {
   return JSON.parse(stdout);
 }
 
+/** Drives the services example: two resources, one calendar, priced offers. */
+const SERVICES_PROBE = `
+(async () => {
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const deadline = Date.now() + 20000;
+  const section = document.querySelector('.services');
+  if (!section) return { error: 'the services example is not rendered' };
+
+  const widgets = [...section.querySelectorAll('sl-slotline')];
+  if (widgets.length !== 2) return { error: 'expected two widgets, got ' + widgets.length };
+
+  const dayOf = (widget) =>
+    [...widget.querySelectorAll('[data-day]')].find(
+      (cell) => cell.getAttribute('aria-disabled') !== 'true',
+    );
+  const offersOf = (widget) => [...widget.querySelectorAll('.sl-slot')];
+
+  for (const widget of widgets) {
+    dayOf(widget)?.click();
+    while (Date.now() < deadline && offersOf(widget).length === 0) await sleep(100);
+  }
+
+  // The card is a custom part, so the label is the element's first text node and the
+  // price is a separate one.
+  const labelOf = (offer) => (offer.childNodes[0]?.textContent ?? '').trim();
+  const first = offersOf(widgets[0]).map(labelOf);
+  const second = offersOf(widgets[1]).map(labelOf);
+  const prices = [...section.querySelectorAll('.offer__price')].map((node) =>
+    node.textContent.trim(),
+  );
+
+  // The service decides the fields, and the context makes the widget ask again.
+  const select = section.querySelector('.services__field select');
+  select.value = 'phone';
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+  await sleep(400);
+
+  const widget = widgets[0];
+  dayOf(widget)?.click();
+  while (Date.now() < deadline && offersOf(widget).length === 0) await sleep(100);
+  offersOf(widget)[0]?.click();
+  while (Date.now() < deadline && !widget.querySelector('input[aria-label="Phone"]')) await sleep(100);
+
+  return {
+    offers: first.length,
+    otherOffers: second.length,
+    sameStart: first[0] === second[0] && !!first[0],
+    shortened: first.length > second.length,
+    prices: [...new Set(prices)],
+    phoneField: !!widget.querySelector('input[aria-label="Phone"]'),
+    questionField: !!widget.querySelector('textarea[aria-label="What should we prepare?"]'),
+    step: widget.querySelector('.sl-root')?.getAttribute('data-sl-step') ?? null,
+  };
+})()
+`;
+
 let report;
 let form;
+let services;
 try {
   report = await probe(url, PROBE, 'app-gallery-panel .sl-root');
   if (!givenUrl) {
     form = await probe(`http://127.0.0.1:${port}/`, FORM_PROBE, '.checkout .sl-root');
+    services = await probe(
+      `http://127.0.0.1:${port}/`,
+      SERVICES_PROBE,
+      '.services sl-slotline .sl-root',
+    );
   }
 } finally {
   server?.close();
@@ -225,6 +287,29 @@ if (form) {
     if (form.hasBookingForm) failures.push('the form example rendered a booking form');
     if (form.step !== 'time') failures.push(`the form example left the offers: ${form.step}`);
     console.log(`checkout: ${form.selected} selected  ·  ${form.choice}  ·  ${form.requested}`);
+  }
+}
+
+if (services) {
+  if (services.error) {
+    failures.push(services.error);
+  } else {
+    if (services.offers === 0) failures.push('the services example listed no offers');
+    if (!services.sameStart) failures.push('the two resources do not share a start time');
+    if (services.offers === services.otherOffers) {
+      failures.push('the two resources offered the same number of slots');
+    }
+    if (services.prices.length < 2) {
+      failures.push(
+        `the custom slot card showed no per-resource price: ${services.prices.join(', ')}`,
+      );
+    }
+    if (!services.phoneField) failures.push('choosing the phone service did not add its field');
+    if (!services.questionField)
+      failures.push('the extra question of the phone service is missing');
+    console.log(
+      `services: ${services.offers}/${services.otherOffers} offers, same start ${services.sameStart ? 'yes' : 'no'}, prices ${services.prices.join('/')}, phone field ${services.phoneField ? 'yes' : 'no'}`,
+    );
   }
 }
 

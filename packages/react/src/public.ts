@@ -15,6 +15,42 @@ export { useAnimations, useSlotlineContext, useClassNames, useUI } from './conte
 export type { SlotlineUIContextValue, UseBookingFlowResult } from './context';
 export { cssAnimations } from './animations/css';
 
+/* -- Replaceable parts ------------------------------------------------------ */
+
+export {
+  DEFAULT_COMPONENTS,
+  DefaultAttempt,
+  DefaultConfirmation,
+  DefaultDayContent,
+  DefaultDurationFooter,
+  DefaultEmpty,
+  DefaultError,
+  DefaultForm,
+  DefaultHeader,
+  DefaultLoading,
+  DefaultProgress,
+  DefaultSlot,
+  DefaultSummary,
+} from './parts';
+
+export type {
+  AttemptPartProps,
+  BackAffordance,
+  ConfirmationPartProps,
+  DayContentPartProps,
+  DurationFooterPartProps,
+  EmptyPartProps,
+  ErrorPartProps,
+  FormPartProps,
+  HeaderPartProps,
+  LoadingPartProps,
+  PartComponent,
+  ProgressPartProps,
+  SlotPartProps,
+  SlotlineComponents,
+  SummaryPartProps,
+} from './parts';
+
 /* -- Flow, controller and derivation ---------------------------------------- */
 
 export {
@@ -48,6 +84,14 @@ export type {
   BookingFieldOption,
   BookingFieldType,
   BookingSnapshot,
+  BookingAttemptView,
+  BookingConfirmationView,
+  BookingDayView,
+  BookingDurationView,
+  BookingFormView,
+  BookingProgressView,
+  BookingSelectionView,
+  BookingSlotView,
   BookingState,
   BookingView,
   ResolvedBookingField,

@@ -1,27 +1,28 @@
 import { useEffect, useRef } from 'react';
-import { useClassNames, useFlow, useUI } from '../context';
+import { useClassNames, useComponents, useFlow, useUI } from '../context';
 import { useFocusTrap } from '../hooks/useFocusTrap';
-import { AttemptStep } from './AttemptStep';
 import { CalendarStep } from './CalendarStep';
-import { ConfirmedStep } from './ConfirmedStep';
 import { DetailsStep } from './DetailsStep';
-import { DurationFooter } from './DurationFooter';
-import { Progress } from './Progress';
 import { SlotsStep } from './SlotsStep';
-import { ChevronLeftIcon } from './icons';
 
 function StepBody() {
-  const { snapshot } = useFlow();
+  const { snapshot, actions } = useFlow();
+  const { Attempt, Confirmation } = useComponents();
+  const view = snapshot.view;
 
-  switch (snapshot.view.step) {
+  switch (view.step) {
     case 'time':
       return <SlotsStep />;
     case 'details':
       return <DetailsStep />;
     case 'attempt':
-      return <AttemptStep />;
+      return view.attempt ? (
+        <Attempt attempt={view.attempt} actions={{ retry: actions.retry }} />
+      ) : null;
     case 'confirmed':
-      return <ConfirmedStep />;
+      return view.confirmation ? (
+        <Confirmation confirmation={view.confirmation} actions={{ reset: actions.reset }} />
+      ) : null;
     case 'date':
     default:
       return <CalendarStep />;
@@ -32,6 +33,7 @@ function StepBody() {
 export function SlotlineView() {
   const { snapshot, actions } = useFlow();
   const ui = useUI();
+  const { Header, Progress, DurationFooter } = useComponents();
   const cls = useClassNames();
   const Animations = ui.animations;
   const view = snapshot.view;
@@ -70,24 +72,21 @@ export function SlotlineView() {
       lang={ui.locale}
     >
       <div className={cls('card')} ref={cardRef}>
-        <header className={cls('header')}>
-          {canGoBack ? (
-            <button
-              type="button"
-              className="sl-icon-button"
-              onClick={actions.back}
-              aria-label={ui.messages.back}
-              disabled={view.form.submitting}
-            >
-              <ChevronLeftIcon />
-            </button>
-          ) : null}
-          <div className="sl-header-main">
-            <h2 className={cls('title')}>{view.title}</h2>
-            <span className={cls('badge')}>{view.duration.label}</span>
-          </div>
-          <Progress />
-        </header>
+        <Header
+          title={view.title}
+          durationLabel={view.duration.label}
+          back={
+            canGoBack
+              ? {
+                  label: ui.messages.back,
+                  disabled: view.form.submitting,
+                  onClick: actions.back,
+                }
+              : null
+          }
+        >
+          <Progress progress={view.progress} />
+        </Header>
 
         <div className={cls('panel')} ref={panelRef} tabIndex={-1}>
           <Animations.Height>
@@ -97,7 +96,9 @@ export function SlotlineView() {
           </Animations.Height>
         </div>
 
-        {view.step === 'date' ? <DurationFooter /> : null}
+        {view.step === 'date' ? (
+          <DurationFooter duration={view.duration} onSelect={actions.setDuration} />
+        ) : null}
 
         <div className="sl-visually-hidden" role="status" aria-live="polite">
           {view.live.message}

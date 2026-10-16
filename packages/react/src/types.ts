@@ -1,4 +1,5 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
+import type { SlotlineComponents } from './parts';
 import type {
   AvailabilityAdapter,
   BookingAdapter,
@@ -8,9 +9,11 @@ import type {
   BookingContext,
   BookingError,
   BookingErrorContext,
+  BookingFieldConfig,
   BookingRequest,
   BookingResult,
   BookingSelection,
+  BookingValues,
   BuiltInLocale,
   DefaultBookingValues,
   InitialBookingAttempt,
@@ -43,7 +46,12 @@ export interface SlotlineProps<TValues = DefaultBookingValues> {
    * the props readable for the common booking case — an application that selects
    * only never has to write a `createBooking` stub.
    */
-  adapter: BookingAdapter<TValues> | AvailabilityAdapter<TValues>;
+  /**
+   * The integration point. The widget never reads an application's context or slot
+   * data — it passes both through untouched — so those two positions stay free and
+   * the concrete shape is the application's business.
+   */
+  adapter: BookingAdapter<TValues, any, any> | AvailabilityAdapter<any, any>;
   /** `selection` stops at the offer and never creates anything. Default: `booking`. */
   mode?: BookingMode;
   /**
@@ -63,6 +71,21 @@ export interface SlotlineProps<TValues = DefaultBookingValues> {
   duration?: number;
   /** Uncontrolled initial duration. Default: first entry of `durations`. */
   defaultDuration?: number;
+  /**
+   * The built-in form's fields, in display order. Default: name and email.
+   *
+   * Replacing the list is how a service books a phone number, an extra question or
+   * no email at all; a fully custom form uses the same values and errors.
+   */
+  fields?: readonly BookingFieldConfig[];
+  /** Controlled form values. */
+  values?: BookingValues;
+  /** Initial values, applied when the scenario is created. */
+  defaultValues?: BookingValues;
+  /** Called whenever the values change, however they changed. */
+  onValuesChange?: (values: BookingValues, metadata: BookingChangeMetadata) => void;
+  /** The application's own validation, on top of the field rules. */
+  validateValues?: (values: BookingValues) => Record<string, string> | undefined;
   /** Called whenever the duration changes, however it changed. */
   onDurationChange?: (duration: number, metadata: BookingChangeMetadata) => void;
   /** IANA time zone used for every date and time rendered. Default: the browser zone. */
@@ -121,6 +144,11 @@ export interface SlotlineProps<TValues = DefaultBookingValues> {
   trapFocus?: boolean;
   /** Replace the built-in animation kit (see `@nickkupriyanov/slotline-react/motion`). */
   animations?: AnimationKit;
+  /**
+   * Replace individual parts of the widget. Anything absent keeps its default, and
+   * `classNames` keeps working independently.
+   */
+  components?: SlotlineComponents;
 }
 
 export type SlotlineProviderProps<TValues = DefaultBookingValues> = SlotlineProps<TValues> & {

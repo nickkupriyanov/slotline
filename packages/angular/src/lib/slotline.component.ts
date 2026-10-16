@@ -9,6 +9,7 @@
  * It is zoneless-safe: reactivity is signals only, there is no `@angular/forms`
  * and no animation kit beyond the stylesheet the core ships.
  */
+import { NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -60,6 +61,7 @@ import {
 } from '@nickkupriyanov/slotline-core';
 import { trapFocus } from '@nickkupriyanov/slotline-core/dom';
 import { SLOTLINE_FORM_STATE } from './form-bridge';
+import { SlotlinePartDirective, type SlotlinePartContexts, type SlotlinePartName } from './parts';
 import { SlotlineService } from './slotline.service';
 import type {
   BookedEvent,
@@ -142,6 +144,7 @@ function valueOfNumberInput(raw: string): number | string {
 @Component({
   selector: 'sl-slotline',
   standalone: true,
+  imports: [NgTemplateOutlet],
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   providers: [SlotlineService],
@@ -157,46 +160,66 @@ function valueOfNumberInput(raw: string): number | string {
     >
       <div [class]="cls('card')" #card>
         <header [class]="cls('header')">
-          @if (canGoBack()) {
-            <button
-              type="button"
-              class="sl-icon-button"
-              [attr.aria-label]="copy().back"
-              [disabled]="view().form.submitting"
-              (click)="actions.back()"
-            >
-              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
-                <path
-                  d="M14.5 5.5 8 12l6.5 6.5"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </button>
-          }
-          <div class="sl-header-main">
-            <h2 [class]="cls('title')">{{ view().title }}</h2>
-            <span [class]="cls('badge')">{{ view().duration.label }}</span>
-          </div>
-          <div
-            [class]="cls('progress')"
-            role="progressbar"
-            aria-valuemin="1"
-            [attr.aria-valuemax]="view().progress.total"
-            [attr.aria-valuenow]="view().progress.current"
-            [attr.aria-valuetext]="view().progress.label"
-          >
-            @for (step of view().progress.steps; track step; let position = $index) {
-              <span
-                class="sl-progress-pill"
-                aria-hidden="true"
-                [attr.data-state]="position < view().progress.current ? 'done' : 'todo'"
-              ></span>
+          @if (part('header'); as headerTemplate) {
+            <ng-container
+              [ngTemplateOutlet]="part('header')"
+              [ngTemplateOutletContext]="headerContext()"
+            />
+          } @else {
+            @if (canGoBack()) {
+              <button
+                type="button"
+                class="sl-icon-button"
+                [attr.aria-label]="copy().back"
+                [disabled]="view().form.submitting"
+                (click)="actions.back()"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="18"
+                  height="18"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="M14.5 5.5 8 12l6.5 6.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
             }
-          </div>
+            <div class="sl-header-main">
+              <h2 [class]="cls('title')">{{ view().title }}</h2>
+              <span [class]="cls('badge')">{{ view().duration.label }}</span>
+            </div>
+          }
+          @if (part('progress'); as progressTemplate) {
+            <ng-container
+              [ngTemplateOutlet]="part('progress')"
+              [ngTemplateOutletContext]="progressContext()"
+            />
+          } @else {
+            <div
+              [class]="cls('progress')"
+              role="progressbar"
+              aria-valuemin="1"
+              [attr.aria-valuemax]="view().progress.total"
+              [attr.aria-valuenow]="view().progress.current"
+              [attr.aria-valuetext]="view().progress.label"
+            >
+              @for (step of view().progress.steps; track step; let position = $index) {
+                <span
+                  class="sl-progress-pill"
+                  aria-hidden="true"
+                  [attr.data-state]="position < view().progress.current ? 'done' : 'todo'"
+                ></span>
+              }
+            </div>
+          }
         </header>
 
         <div [class]="cls('panel')" #panel tabindex="-1">
@@ -239,46 +262,80 @@ function valueOfNumberInput(raw: string): number | string {
                 </div>
 
                 @if (view().slots.loading) {
-                  <div [class]="cls('slots')" aria-hidden="true">
-                    @for (index of skeletons; track index) {
-                      <div [class]="cls('skeleton')" [style.--sl-index]="index"></div>
-                    }
-                  </div>
+                  @if (part('loading'); as loadingTemplate) {
+                    <ng-container
+                      [ngTemplateOutlet]="part('loading')"
+                      [ngTemplateOutletContext]="loadingContext()"
+                    />
+                  } @else {
+                    <div [class]="cls('slots')" aria-hidden="true">
+                      @for (index of skeletons; track index) {
+                        <div [class]="cls('skeleton')" [style.--sl-index]="index"></div>
+                      }
+                    </div>
+                  }
                 }
 
                 @if (view().slots.error; as slotsError) {
-                  <div [class]="cls('error')" role="alert">
-                    <span>{{ slotsError }}</span>
-                    <button type="button" class="sl-link-button" (click)="actions.reloadSlots()">
-                      {{ copy().retry }}
-                    </button>
-                  </div>
+                  @if (part('error'); as errorTemplate) {
+                    <ng-container
+                      [ngTemplateOutlet]="part('error')"
+                      [ngTemplateOutletContext]="
+                        errorContext(slotsError, () => actions.reloadSlots())
+                      "
+                    />
+                  } @else {
+                    <div [class]="cls('error')" role="alert">
+                      <span>{{ slotsError }}</span>
+                      <button type="button" class="sl-link-button" (click)="actions.reloadSlots()">
+                        {{ copy().retry }}
+                      </button>
+                    </div>
+                  }
                 }
 
                 @if (view().slots.empty) {
-                  <div [class]="cls('empty')">
-                    <p class="sl-empty-title">{{ copy().noSlotsTitle }}</p>
-                    <p class="sl-empty-body">{{ copy().noSlotsBody }}</p>
-                    <button type="button" [class]="cls('secondaryButton')" (click)="actions.back()">
-                      {{ copy().pickAnotherDay }}
-                    </button>
-                  </div>
+                  @if (part('empty'); as emptyTemplate) {
+                    <ng-container
+                      [ngTemplateOutlet]="part('empty')"
+                      [ngTemplateOutletContext]="emptyContext()"
+                    />
+                  } @else {
+                    <div [class]="cls('empty')">
+                      <p class="sl-empty-title">{{ copy().noSlotsTitle }}</p>
+                      <p class="sl-empty-body">{{ copy().noSlotsBody }}</p>
+                      <button
+                        type="button"
+                        [class]="cls('secondaryButton')"
+                        (click)="actions.back()"
+                      >
+                        {{ copy().pickAnotherDay }}
+                      </button>
+                    </div>
+                  }
                 }
 
                 @if (view().slots.status === 'ready' && view().slots.count > 0) {
                   <div [class]="cls('slots')" role="group" [attr.aria-label]="view().slots.label">
                     @for (slot of view().slots.items; track slot.id; let index = $index) {
-                      <button
-                        type="button"
-                        [class]="cls('slot', slot.selected && 'is-selected')"
-                        [attr.aria-current]="slot.selected ? 'true' : null"
-                        [attr.aria-label]="
-                          slot.utcOffsetLabel ? slot.label + ' ' + slot.utcOffsetLabel : null
-                        "
-                        (click)="onSlotSelect(slot)"
-                      >
-                        {{ slot.label }}
-                      </button>
+                      @if (part('slot'); as slotTemplate) {
+                        <ng-container
+                          [ngTemplateOutlet]="slotTemplate"
+                          [ngTemplateOutletContext]="slotContext(slot, index)"
+                        />
+                      } @else {
+                        <button
+                          type="button"
+                          [class]="cls('slot', slot.selected && 'is-selected')"
+                          [attr.aria-current]="slot.selected ? 'true' : null"
+                          [attr.aria-label]="
+                            slot.utcOffsetLabel ? slot.label + ' ' + slot.utcOffsetLabel : null
+                          "
+                          (click)="onSlotSelect(slot)"
+                        >
+                          {{ slot.label }}
+                        </button>
+                      }
                     }
                   </div>
                 }
@@ -288,310 +345,358 @@ function valueOfNumberInput(raw: string): number | string {
             @case ('details') {
               <!-- Step 3 — recap of the selection plus the configured fields. -->
               <div class="sl-details-step">
-                <div [class]="cls('summary')">
-                  <span class="sl-summary-icon" aria-hidden="true">
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="20"
-                      height="20"
-                      aria-hidden="true"
-                      focusable="false"
-                    >
-                      <rect
-                        x="3.5"
-                        y="5"
-                        width="17"
-                        height="15.5"
-                        rx="3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.7"
-                      />
-                      <path
-                        d="M3.5 9.5h17M8 3.5v3M16 3.5v3"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.7"
-                        stroke-linecap="round"
-                      />
-                    </svg>
-                  </span>
-                  <div class="sl-summary-body">
-                    <p class="sl-summary-date">{{ view().time.dateLabel }}</p>
-                    <p class="sl-summary-meta">
+                @if (part('summary'); as summaryTemplate) {
+                  <ng-container
+                    [ngTemplateOutlet]="part('summary')"
+                    [ngTemplateOutletContext]="summaryContext()"
+                  />
+                } @else {
+                  <div [class]="cls('summary')">
+                    <span class="sl-summary-icon" aria-hidden="true">
                       <svg
                         viewBox="0 0 24 24"
-                        width="16"
-                        height="16"
+                        width="20"
+                        height="20"
                         aria-hidden="true"
                         focusable="false"
                       >
-                        <circle
-                          cx="12"
-                          cy="12"
-                          r="8.5"
+                        <rect
+                          x="3.5"
+                          y="5"
+                          width="17"
+                          height="15.5"
+                          rx="3.5"
                           fill="none"
                           stroke="currentColor"
                           stroke-width="1.7"
                         />
                         <path
-                          d="M12 7.5V12l3 2"
+                          d="M3.5 9.5h17M8 3.5v3M16 3.5v3"
                           fill="none"
                           stroke="currentColor"
                           stroke-width="1.7"
                           stroke-linecap="round"
                         />
                       </svg>
-                      <span>{{ view().time.label }} · {{ view().duration.label }}</span>
-                    </p>
-                  </div>
-                </div>
-
-                <form [class]="cls('form')" noValidate (submit)="onSubmit($event)">
-                  @for (field of view().form.fields; track field.name; let index = $index) {
-                    <div
-                      [class]="cls('field')"
-                      [attr.data-invalid]="fieldError(field) ? 'true' : null"
-                    >
-                      @if (field.type === 'textarea') {
-                        <textarea
-                          [id]="fieldId(index)"
-                          [name]="field.name"
-                          [class]="cls('input')"
-                          [attr.aria-label]="field.label"
-                          [attr.aria-invalid]="fieldError(field) ? true : null"
-                          [attr.aria-describedby]="describedBy(field, index)"
-                          [attr.placeholder]="field.placeholder ?? field.label"
-                          [value]="textOf(view().form.values[field.name])"
-                          [disabled]="view().form.submitting"
-                          (input)="onFieldInput(field.name, $event)"
-                          (blur)="actions.touchField(field.name)"
-                        ></textarea>
-                      } @else if (field.type === 'select') {
-                        <select
-                          [id]="fieldId(index)"
-                          [name]="field.name"
-                          [class]="cls('input')"
-                          [attr.aria-label]="field.label"
-                          [attr.aria-invalid]="fieldError(field) ? true : null"
-                          [attr.aria-describedby]="describedBy(field, index)"
-                          [value]="textOf(view().form.values[field.name])"
-                          [disabled]="view().form.submitting"
-                          (change)="onFieldInput(field.name, $event)"
-                          (blur)="actions.touchField(field.name)"
+                    </span>
+                    <div class="sl-summary-body">
+                      <p class="sl-summary-date">{{ view().time.dateLabel }}</p>
+                      <p class="sl-summary-meta">
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="16"
+                          height="16"
+                          aria-hidden="true"
+                          focusable="false"
                         >
-                          <option value="">{{ field.placeholder ?? '' }}</option>
-                          @for (option of field.options ?? []; track option.value) {
-                            <option [value]="option.value">{{ option.label }}</option>
-                          }
-                        </select>
-                      } @else if (field.type === 'checkbox') {
-                        <label class="sl-checkbox">
-                          <input
+                          <circle
+                            cx="12"
+                            cy="12"
+                            r="8.5"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.7"
+                          />
+                          <path
+                            d="M12 7.5V12l3 2"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.7"
+                            stroke-linecap="round"
+                          />
+                        </svg>
+                        <span>{{ view().time.label }} · {{ view().duration.label }}</span>
+                      </p>
+                    </div>
+                  </div>
+                }
+
+                @if (part('form'); as formTemplate) {
+                  <ng-container
+                    [ngTemplateOutlet]="part('form')"
+                    [ngTemplateOutletContext]="formContext()"
+                  />
+                } @else {
+                  <form [class]="cls('form')" noValidate (submit)="onSubmit($event)">
+                    @for (field of view().form.fields; track field.name; let index = $index) {
+                      <div
+                        [class]="cls('field')"
+                        [attr.data-invalid]="fieldError(field) ? 'true' : null"
+                      >
+                        @if (field.type === 'textarea') {
+                          <textarea
                             [id]="fieldId(index)"
                             [name]="field.name"
-                            type="checkbox"
+                            [class]="cls('input')"
                             [attr.aria-label]="field.label"
                             [attr.aria-invalid]="fieldError(field) ? true : null"
                             [attr.aria-describedby]="describedBy(field, index)"
-                            [checked]="view().form.values[field.name] === true"
+                            [attr.placeholder]="field.placeholder ?? field.label"
+                            [value]="textOf(view().form.values[field.name])"
                             [disabled]="view().form.submitting"
-                            (change)="onFieldCheck(field.name, $event)"
+                            (input)="onFieldInput(field.name, $event)"
+                            (blur)="actions.touchField(field.name)"
+                          ></textarea>
+                        } @else if (field.type === 'select') {
+                          <select
+                            [id]="fieldId(index)"
+                            [name]="field.name"
+                            [class]="cls('input')"
+                            [attr.aria-label]="field.label"
+                            [attr.aria-invalid]="fieldError(field) ? true : null"
+                            [attr.aria-describedby]="describedBy(field, index)"
+                            [value]="textOf(view().form.values[field.name])"
+                            [disabled]="view().form.submitting"
+                            (change)="onFieldInput(field.name, $event)"
+                            (blur)="actions.touchField(field.name)"
+                          >
+                            <option value="">{{ field.placeholder ?? '' }}</option>
+                            @for (option of field.options ?? []; track option.value) {
+                              <option [value]="option.value">{{ option.label }}</option>
+                            }
+                          </select>
+                        } @else if (field.type === 'checkbox') {
+                          <label class="sl-checkbox">
+                            <input
+                              [id]="fieldId(index)"
+                              [name]="field.name"
+                              type="checkbox"
+                              [attr.aria-label]="field.label"
+                              [attr.aria-invalid]="fieldError(field) ? true : null"
+                              [attr.aria-describedby]="describedBy(field, index)"
+                              [checked]="view().form.values[field.name] === true"
+                              [disabled]="view().form.submitting"
+                              (change)="onFieldCheck(field.name, $event)"
+                              (blur)="actions.touchField(field.name)"
+                            />
+                            <span>{{ field.label }}</span>
+                          </label>
+                        } @else {
+                          <input
+                            [id]="fieldId(index)"
+                            [name]="field.name"
+                            [class]="cls('input')"
+                            [type]="inputTypeOf(field)"
+                            [attr.inputmode]="inputModeOf(field)"
+                            [attr.autocomplete]="autoCompleteOf(field.name)"
+                            [attr.aria-label]="field.label"
+                            [attr.aria-invalid]="fieldError(field) ? true : null"
+                            [attr.aria-describedby]="describedBy(field, index)"
+                            [attr.placeholder]="field.placeholder ?? field.label"
+                            [value]="textOf(view().form.values[field.name])"
+                            [disabled]="view().form.submitting"
+                            (input)="onFieldInput(field.name, $event)"
                             (blur)="actions.touchField(field.name)"
                           />
-                          <span>{{ field.label }}</span>
-                        </label>
-                      } @else {
-                        <input
-                          [id]="fieldId(index)"
-                          [name]="field.name"
-                          [class]="cls('input')"
-                          [type]="inputTypeOf(field)"
-                          [attr.inputmode]="inputModeOf(field)"
-                          [attr.autocomplete]="autoCompleteOf(field.name)"
-                          [attr.aria-label]="field.label"
-                          [attr.aria-invalid]="fieldError(field) ? true : null"
-                          [attr.aria-describedby]="describedBy(field, index)"
-                          [attr.placeholder]="field.placeholder ?? field.label"
-                          [value]="textOf(view().form.values[field.name])"
-                          [disabled]="view().form.submitting"
-                          (input)="onFieldInput(field.name, $event)"
-                          (blur)="actions.touchField(field.name)"
-                        />
-                      }
+                        }
 
-                      @if (field.hint && !fieldError(field)) {
-                        <p class="sl-field-hint" [id]="hintId(index)">{{ field.hint }}</p>
-                      }
+                        @if (field.hint && !fieldError(field)) {
+                          <p class="sl-field-hint" [id]="hintId(index)">{{ field.hint }}</p>
+                        }
 
-                      @if (fieldError(field); as error) {
-                        <p class="sl-field-error" [id]="errorId(index)" role="alert">
-                          {{ error }}
-                        </p>
-                      }
-                    </div>
-                  }
-
-                  @if (view().form.formError; as formError) {
-                    <div [class]="cls('error')" role="alert">
-                      <span>{{ formError }}</span>
-                    </div>
-                  }
-
-                  @if (view().form.submitError; as submitError) {
-                    <div [class]="cls('error')" role="alert">
-                      <span>{{ submitError }}</span>
-                      <button type="button" class="sl-link-button" (click)="actions.submit()">
-                        {{ copy().retry }}
-                      </button>
-                    </div>
-                  }
-
-                  <button
-                    type="submit"
-                    [class]="cls('submit')"
-                    [disabled]="view().form.submitting"
-                    [attr.data-loading]="view().form.submitting ? 'true' : null"
-                  >
-                    @if (view().form.submitting) {
-                      <svg
-                        class="sl-spinner"
-                        viewBox="0 0 24 24"
-                        width="16"
-                        height="16"
-                        aria-hidden="true"
-                        focusable="false"
-                      >
-                        <circle
-                          cx="12"
-                          cy="12"
-                          r="8"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-dasharray="34 14"
-                        />
-                      </svg>
-                    } @else {
-                      <svg
-                        class="sl-submit-arrow"
-                        viewBox="0 0 24 24"
-                        width="18"
-                        height="18"
-                        aria-hidden="true"
-                        focusable="false"
-                      >
-                        <path
-                          d="M4 12h15m0 0-6-6m6 6-6 6"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="1.8"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
+                        @if (fieldError(field); as error) {
+                          <p class="sl-field-error" [id]="errorId(index)" role="alert">
+                            {{ error }}
+                          </p>
+                        }
+                      </div>
                     }
-                    <span>{{ view().form.submitLabel }}</span>
-                  </button>
-                </form>
+
+                    @if (view().form.formError; as formError) {
+                      @if (part('error'); as errorTemplate) {
+                        <ng-container
+                          [ngTemplateOutlet]="part('error')"
+                          [ngTemplateOutletContext]="errorContext(formError)"
+                        />
+                      } @else {
+                        <div [class]="cls('error')" role="alert">
+                          <span>{{ formError }}</span>
+                        </div>
+                      }
+                    }
+
+                    @if (view().form.submitError; as submitError) {
+                      @if (part('error'); as errorTemplate) {
+                        <ng-container
+                          [ngTemplateOutlet]="part('error')"
+                          [ngTemplateOutletContext]="
+                            errorContext(submitError, () => actions.submit())
+                          "
+                        />
+                      } @else {
+                        <div [class]="cls('error')" role="alert">
+                          <span>{{ submitError }}</span>
+                          <button type="button" class="sl-link-button" (click)="actions.submit()">
+                            {{ copy().retry }}
+                          </button>
+                        </div>
+                      }
+                    }
+
+                    <button
+                      type="submit"
+                      [class]="cls('submit')"
+                      [disabled]="view().form.submitting"
+                      [attr.data-loading]="view().form.submitting ? 'true' : null"
+                    >
+                      @if (view().form.submitting) {
+                        <svg
+                          class="sl-spinner"
+                          viewBox="0 0 24 24"
+                          width="16"
+                          height="16"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <circle
+                            cx="12"
+                            cy="12"
+                            r="8"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-dasharray="34 14"
+                          />
+                        </svg>
+                      } @else {
+                        <svg
+                          class="sl-submit-arrow"
+                          viewBox="0 0 24 24"
+                          width="18"
+                          height="18"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path
+                            d="M4 12h15m0 0-6-6m6 6-6 6"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
+                      }
+                      <span>{{ view().form.submitLabel }}</span>
+                    </button>
+                  </form>
+                }
               </div>
             }
 
             @case ('attempt') {
               <!-- The service screen: the request has left, the flow is blocked. -->
               @if (view().attempt; as attempt) {
-                <div [class]="cls('empty')" [attr.data-attempt]="attempt.status">
-                  <p class="sl-empty-title">{{ attempt.title }}</p>
-                  <p class="sl-empty-body">{{ attempt.description }}</p>
-                  @if (attempt.instructions; as instructions) {
-                    <p class="sl-empty-body">{{ instructions }}</p>
-                  }
-
-                  <div [class]="cls('summary')" [attr.aria-label]="attempt.summaryLabel">
-                    <div class="sl-summary-body">
-                      <p class="sl-summary-date">{{ attempt.summary.dateLabel }}</p>
-                      <p class="sl-summary-meta">
-                        <span>
-                          {{ attempt.summary.timeLabel }} · {{ attempt.summary.durationLabel }}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-
-                  @for (value of attempt.summary.values; track value.name) {
-                    @if (value.checked !== undefined) {
-                      <p class="sl-summary-value">
-                        <span class="sl-summary-value-label">{{ value.label }}</span>
-                        <span class="sl-summary-value-text">
-                          {{ value.checked ? '✓' : '—' }}
-                        </span>
-                      </p>
-                    } @else if (value.value) {
-                      <p class="sl-summary-value">
-                        <span class="sl-summary-value-label">{{ value.label }}</span>
-                        <span class="sl-summary-value-text">{{ value.value }}</span>
-                      </p>
+                @if (part('attempt'); as attemptTemplate) {
+                  <ng-container
+                    [ngTemplateOutlet]="part('attempt')"
+                    [ngTemplateOutletContext]="attemptContext(attempt)"
+                  />
+                } @else {
+                  <div [class]="cls('empty')" [attr.data-attempt]="attempt.status">
+                    <p class="sl-empty-title">{{ attempt.title }}</p>
+                    <p class="sl-empty-body">{{ attempt.description }}</p>
+                    @if (attempt.instructions; as instructions) {
+                      <p class="sl-empty-body">{{ instructions }}</p>
                     }
-                  }
 
-                  <p class="sl-empty-body">{{ attempt.retryDescription }}</p>
+                    <div [class]="cls('summary')" [attr.aria-label]="attempt.summaryLabel">
+                      <div class="sl-summary-body">
+                        <p class="sl-summary-date">{{ attempt.summary.dateLabel }}</p>
+                        <p class="sl-summary-meta">
+                          <span>
+                            {{ attempt.summary.timeLabel }} · {{ attempt.summary.durationLabel }}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
 
-                  @if (view().actions.canRetry) {
-                    <button type="button" [class]="cls('submit')" (click)="actions.retry()">
-                      {{ attempt.retryLabel }}
-                    </button>
-                  }
+                    @for (value of attempt.summary.values; track value.name) {
+                      @if (value.checked !== undefined) {
+                        <p class="sl-summary-value">
+                          <span class="sl-summary-value-label">{{ value.label }}</span>
+                          <span class="sl-summary-value-text">
+                            {{ value.checked ? '✓' : '—' }}
+                          </span>
+                        </p>
+                      } @else if (value.value) {
+                        <p class="sl-summary-value">
+                          <span class="sl-summary-value-label">{{ value.label }}</span>
+                          <span class="sl-summary-value-text">{{ value.value }}</span>
+                        </p>
+                      }
+                    }
 
-                  @if (view().attempt?.canCheckStatus) {
-                    <button
-                      type="button"
-                      [class]="cls('secondaryButton')"
-                      (click)="checkStatus.emit()"
-                    >
-                      {{ attempt.checkStatusLabel }}
-                    </button>
-                  }
+                    <p class="sl-empty-body">{{ attempt.retryDescription }}</p>
 
-                  <!-- The visible copy stays in the dictionary; nothing renders raw markup. -->
-                  <span class="sl-visually-hidden">{{ copy().attemptSummaryLabel }}</span>
-                </div>
+                    @if (view().actions.canRetry) {
+                      <button type="button" [class]="cls('submit')" (click)="actions.retry()">
+                        {{ attempt.retryLabel }}
+                      </button>
+                    }
+
+                    @if (view().attempt?.canCheckStatus) {
+                      <button
+                        type="button"
+                        [class]="cls('secondaryButton')"
+                        (click)="checkStatus.emit()"
+                      >
+                        {{ attempt.checkStatusLabel }}
+                      </button>
+                    }
+
+                    <!-- The visible copy stays in the dictionary; nothing renders raw markup. -->
+                    <span class="sl-visually-hidden">{{ copy().attemptSummaryLabel }}</span>
+                  </div>
+                }
               }
             }
 
             @case ('confirmed') {
               @if (view().confirmation; as confirmation) {
-                <div [class]="cls('confirmation')">
-                  <span [class]="cls('confirmationIcon')" aria-hidden="true">
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="26"
-                      height="26"
-                      aria-hidden="true"
-                      focusable="false"
+                @if (part('confirmation'); as confirmationTemplate) {
+                  <ng-container
+                    [ngTemplateOutlet]="part('confirmation')"
+                    [ngTemplateOutletContext]="confirmationContext(confirmation)"
+                  />
+                } @else {
+                  <div [class]="cls('confirmation')">
+                    <span [class]="cls('confirmationIcon')" aria-hidden="true">
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="26"
+                        height="26"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <path
+                          class="sl-check-path"
+                          d="M5 12.5 10 17.5 19 7"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.1"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </span>
+                    <h3 [class]="cls('confirmationTitle')">{{ confirmation.title }}</h3>
+                    <div [class]="cls('confirmationText')">
+                      <p>{{ confirmation.summary }}</p>
+                      @if (confirmation.invitation; as invitation) {
+                        <p>{{ invitation }}</p>
+                      }
+                    </div>
+                    <button
+                      type="button"
+                      [class]="cls('secondaryButton')"
+                      (click)="actions.reset()"
                     >
-                      <path
-                        class="sl-check-path"
-                        d="M5 12.5 10 17.5 19 7"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.1"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      />
-                    </svg>
-                  </span>
-                  <h3 [class]="cls('confirmationTitle')">{{ confirmation.title }}</h3>
-                  <div [class]="cls('confirmationText')">
-                    <p>{{ confirmation.summary }}</p>
-                    @if (confirmation.invitation; as invitation) {
-                      <p>{{ invitation }}</p>
-                    }
+                      {{ confirmation.bookAnotherLabel }}
+                    </button>
                   </div>
-                  <button type="button" [class]="cls('secondaryButton')" (click)="actions.reset()">
-                    {{ confirmation.bookAnotherLabel }}
-                  </button>
-                </div>
+                }
               }
             }
 
@@ -661,16 +766,25 @@ function valueOfNumberInput(raw: string): number | string {
                 </div>
 
                 @if (view().month.error; as monthError) {
-                  <div [class]="cls('error')" role="alert">
-                    <span>{{ monthError }}</span>
-                    <button
-                      type="button"
-                      class="sl-link-button"
-                      (click)="actions.reloadAvailability()"
-                    >
-                      {{ copy().retry }}
-                    </button>
-                  </div>
+                  @if (part('error'); as errorTemplate) {
+                    <ng-container
+                      [ngTemplateOutlet]="part('error')"
+                      [ngTemplateOutletContext]="
+                        errorContext(monthError, () => actions.reloadAvailability())
+                      "
+                    />
+                  } @else {
+                    <div [class]="cls('error')" role="alert">
+                      <span>{{ monthError }}</span>
+                      <button
+                        type="button"
+                        class="sl-link-button"
+                        (click)="actions.reloadAvailability()"
+                      >
+                        {{ copy().retry }}
+                      </button>
+                    </div>
+                  }
                 }
 
                 <div
@@ -703,12 +817,19 @@ function valueOfNumberInput(raw: string): number | string {
                           [style.--sl-index]="rowIndex * 7 + cellIndex"
                           (click)="onDayClick(day)"
                         >
-                          <span class="sl-day-number">{{ dayNumber(day) }}</span>
-                          <span
-                            [class]="cls('dayDot')"
-                            aria-hidden="true"
-                            [attr.data-visible]="dayCell(day)?.bookable ? true : null"
-                          ></span>
+                          @if (part('dayContent'); as dayTemplate) {
+                            <ng-container
+                              [ngTemplateOutlet]="dayTemplate"
+                              [ngTemplateOutletContext]="dayContentContext(day)"
+                            />
+                          } @else {
+                            <span class="sl-day-number">{{ dayNumber(day) }}</span>
+                            <span
+                              [class]="cls('dayDot')"
+                              aria-hidden="true"
+                              [attr.data-visible]="dayCell(day)?.bookable ? true : null"
+                            ></span>
+                          }
                         </button>
                       }
                     </div>
@@ -726,29 +847,36 @@ function valueOfNumberInput(raw: string): number | string {
         </div>
 
         @if (view().step === 'date' && view().duration.showSelector) {
-          <footer [class]="cls('footer')">
-            <!-- The group carries the accessible name, so the visible caption is decorative. -->
-            <span class="sl-duration-label" aria-hidden="true">{{ copy().durationLabel }}</span>
-            <div
-              class="sl-duration-group"
-              role="radiogroup"
-              [attr.aria-label]="copy().durationGroupLabel"
-            >
-              @for (minutes of view().duration.options; track minutes) {
-                <button
-                  type="button"
-                  role="radio"
-                  class="sl-duration-pill"
-                  [attr.aria-checked]="minutes === view().duration.current"
-                  [attr.aria-label]="durationLabel(minutes)"
-                  [attr.data-state]="minutes === view().duration.current ? 'active' : 'idle'"
-                  (click)="actions.setDuration(minutes)"
-                >
-                  {{ durationLabel(minutes) }}
-                </button>
-              }
-            </div>
-          </footer>
+          @if (part('durationFooter'); as durationTemplate) {
+            <ng-container
+              [ngTemplateOutlet]="part('durationFooter')"
+              [ngTemplateOutletContext]="durationContext()"
+            />
+          } @else {
+            <footer [class]="cls('footer')">
+              <!-- The group carries the accessible name, so the visible caption is decorative. -->
+              <span class="sl-duration-label" aria-hidden="true">{{ copy().durationLabel }}</span>
+              <div
+                class="sl-duration-group"
+                role="radiogroup"
+                [attr.aria-label]="copy().durationGroupLabel"
+              >
+                @for (minutes of view().duration.options; track minutes) {
+                  <button
+                    type="button"
+                    role="radio"
+                    class="sl-duration-pill"
+                    [attr.aria-checked]="minutes === view().duration.current"
+                    [attr.aria-label]="durationLabel(minutes)"
+                    [attr.data-state]="minutes === view().duration.current ? 'active' : 'idle'"
+                    (click)="actions.setDuration(minutes)"
+                  >
+                    {{ durationLabel(minutes) }}
+                  </button>
+                }
+              </div>
+            </footer>
+          }
         }
       </div>
     </div>
@@ -781,6 +909,15 @@ export class SlotlineComponent {
    * `compact` (default) keeps the card at `--sl-width`; `adaptive` uses
    * `--sl-width-adaptive` and lets container queries re-compose the content.
    */
+  /** The built-in form's fields, in display order. */
+  readonly fields = input<SlotlineComponentInputs['fields']>(undefined);
+  /** Controlled form values. */
+  readonly values = input<SlotlineComponentInputs['values']>(undefined);
+  /** Initial form values, applied when the scenario is created. */
+  readonly defaultValues = input<SlotlineComponentInputs['defaultValues']>(undefined);
+  /** The application's own validation, on top of the field rules. */
+  readonly validateValues = input<SlotlineComponentInputs['validateValues']>(undefined);
+
   /**
    * Present when a form owns this widget: `/forms` provides it on the same element.
    * The value arrives before the controller exists, which is what makes the flow
@@ -840,6 +977,124 @@ export class SlotlineComponent {
   /* ------------------------------------------------------------------------ */
   /*  The flow                                                                */
   /* ------------------------------------------------------------------------ */
+
+  /**
+   * The templates the application supplied, keyed by the part they replace.
+   *
+   * `ng-template` children are never rendered on their own: the library renders one
+   * only where that part would have been.
+   */
+  private readonly partDirectives = contentChildren(SlotlinePartDirective);
+  private readonly partMap = computed(() => {
+    const map = new Map<SlotlinePartName, TemplateRef<unknown>>();
+    for (const directive of this.partDirectives()) map.set(directive.part(), directive.template);
+    return map;
+  });
+
+  /** The replacement for a part, or `null` when the application kept the default. */
+  protected part(name: SlotlinePartName): TemplateRef<unknown> | null {
+    return this.partMap().get(name) ?? null;
+  }
+
+  /* -- part contexts: the equivalent of the React part props ----------------- */
+
+  protected headerContext(): SlotlinePartContexts['header'] {
+    const view = this.view();
+    return {
+      $implicit: {
+        title: view.title,
+        durationLabel: view.duration.label,
+        back: this.canGoBack()
+          ? {
+              label: this.copy().back,
+              disabled: view.form.submitting,
+            }
+          : null,
+      },
+    };
+  }
+
+  protected progressContext(): SlotlinePartContexts['progress'] {
+    return { $implicit: this.view().progress };
+  }
+
+  protected summaryContext(): SlotlinePartContexts['summary'] {
+    return { $implicit: this.view() };
+  }
+
+  protected loadingContext(): SlotlinePartContexts['loading'] {
+    return { $implicit: { count: this.skeletons.length } };
+  }
+
+  protected errorContext(message: string, retry?: () => void): SlotlinePartContexts['error'] {
+    return {
+      $implicit: { message, retryLabel: this.copy().retry },
+      ...(retry === undefined ? {} : { retry }),
+    };
+  }
+
+  protected emptyContext(): SlotlinePartContexts['empty'] {
+    return {
+      $implicit: { title: this.copy().noSlotsTitle, body: this.copy().noSlotsBody },
+      action: { label: this.copy().pickAnotherDay, onClick: () => this.actions.back() },
+    };
+  }
+
+  protected slotContext(slot: BookingSlotView, index: number): SlotlinePartContexts['slot'] {
+    return {
+      $implicit: slot,
+      index,
+      slotProps: {
+        type: 'button',
+        className: this.cls('slot', slot.selected && 'is-selected'),
+        style: { '--sl-index': index },
+        ...(slot.selected ? { 'aria-current': 'true' as const } : {}),
+        ...(slot.utcOffsetLabel ? { 'aria-label': `${slot.label} ${slot.utcOffsetLabel}` } : {}),
+        disabled: this.unavailable(),
+        onClick: () => this.actions.selectSlot(slot),
+      },
+    };
+  }
+
+  protected dayContentContext(day: string): SlotlinePartContexts['dayContent'] {
+    return { $implicit: { day, dayView: this.view().days[day] } };
+  }
+
+  protected formContext(): SlotlinePartContexts['form'] {
+    return {
+      $implicit: this.view().form,
+      messages: this.copy(),
+      actions: {
+        setValues: (values) => this.actions.setValues(values),
+        touchField: (field) => this.actions.touchField(field),
+        submit: () => void this.actions.submit(),
+        retry: () => this.actions.reloadSlots(),
+      },
+    };
+  }
+
+  protected attemptContext(attempt: BookingAttemptView): SlotlinePartContexts['attempt'] {
+    return {
+      $implicit: attempt,
+      actions: {
+        retry: () => this.actions.retry(),
+        checkStatus: () => this.checkStatus.emit(),
+      },
+    };
+  }
+
+  protected confirmationContext(
+    confirmation: BookingConfirmationView,
+  ): SlotlinePartContexts['confirmation'] {
+    return { $implicit: confirmation, actions: { reset: () => this.actions.reset() } };
+  }
+
+  protected durationContext(): SlotlinePartContexts['durationFooter'] {
+    return {
+      $implicit: this.view().duration,
+      select: (minutes) => this.actions.setDuration(minutes),
+    };
+  }
 
   /**
    * The headless service behind this widget: the same instance the template reads.
@@ -1037,6 +1292,8 @@ export class SlotlineComponent {
         ...(this.title() === undefined ? {} : { title: this.title() }),
         ...(this.context() === undefined ? {} : { context: this.context() }),
         ...(this.formMode() === undefined ? {} : { formMode: this.formMode() }),
+        ...(this.fields() === undefined ? {} : { fields: this.fields() }),
+        ...(this.validateValues() === undefined ? {} : { validateValues: this.validateValues() }),
       },
       inputs,
       ...(attempt === undefined ? {} : { initialAttempt: attempt }),

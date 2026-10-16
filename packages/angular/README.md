@@ -58,12 +58,42 @@ widget's signal inputs and its template need a real compilation, and the CLI's
 unit-test builder cannot compile a library project's specs in 21.2 — it builds its
 TypeScript program from an application's entry points, and a library has none.
 
-The package is published from the `dist` that ng-packagr writes
-(`publishConfig.directory`), so the manifest consumers install is the one the
-compiler produced. Every release is verified from its packed tarball — installed into
-a clean application and built in three configurations: zoneless, zone.js, and SSR
-with prerendering and hydration.
+The package is `private` until the first stable release: it is published together
+with the 1.0 version line, when the bindings have reached parity. Until then it is
+verified from its packed tarball — installed into a clean application and built in
+three configurations: zoneless, zone.js, and SSR with prerendering and hydration.
 
 ## License
 
 MIT © Nick Kupriyanov
+
+## Replacing parts
+
+```html
+<sl-slotline [adapter]="adapter">
+  <ng-template slSlotlinePart="slot" let-slot let-slotProps="slotProps">
+    <button type="button" [class]="slotProps.className" (click)="slotProps.onClick()">
+      {{ slot.label }} <span class="price">€90</span>
+    </button>
+  </ng-template>
+</sl-slotline>
+```
+
+Wired parts: `slot`, `dayContent`, `form`, `attempt`, `confirmation`,
+`durationFooter`, `header`, `progress`, `summary`, `loading`, `error`, `empty`. The
+context is the equivalent of the React part props.
+
+## Time zone and format controls
+
+```html
+<sl-slotline
+  [adapter]="adapter"
+  [showTimeZoneSelector]="true"
+  [showTimeFormatSelector]="true"
+  [timeZones]="['UTC', 'Europe/Berlin']"
+/>
+```
+
+Both are off by default, and both report through `(timeZoneChange)` and
+`(timeFormatChange)`. Without `timeZones` the list comes from the runtime, always
+including UTC and the current zone.
