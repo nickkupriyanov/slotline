@@ -1,6 +1,6 @@
 {
   "name": "@nickkupriyanov/slotline-angular",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Angular binding of Slotline: a standalone booking widget and a headless service over the shared @nickkupriyanov/slotline-core controller.",
   "keywords": [
     "angular",
