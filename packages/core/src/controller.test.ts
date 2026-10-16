@@ -494,6 +494,34 @@ describe('controller · submit', () => {
     expect(onBooked).toHaveBeenCalledTimes(1);
   });
 
+  it('renders the offers in the zone the built-in selector picked', async () => {
+    // The uncontrolled path: the selector calls `setTimeZone`, and the same instant
+    // has to be shown in the new zone without asking the adapter again.
+    const harness = createHarness({
+      config: { showTimeZoneSelector: true, timeZones: ['UTC', 'Europe/Berlin'] },
+      inputs: { defaultTimeZone: 'UTC' },
+    });
+    harness.controller.start();
+    await flush();
+    harness.controller.actions.selectDate(DAY);
+    await flush();
+
+    const before = harness.controller.getSnapshot().view;
+    expect(before.timeZone.current).toBe('UTC');
+    expect(before.timeZone.options).toEqual(['UTC', 'Europe/Berlin']);
+
+    harness.controller.actions.setTimeZone('Europe/Berlin');
+    await flush();
+
+    const after = harness.controller.getSnapshot().view;
+    expect(after.timeZone.current).toBe('Europe/Berlin');
+    // The same instant is now read in the new zone, and the day it belongs to may
+    // have changed, so the offers are read again — this is the one thing a zone change
+    // is allowed to cost.
+    expect(after.slots.items[0]?.label).not.toBe(before.slots.items[0]?.label);
+    expect(harness.calls.slots).toBeGreaterThan(1);
+  });
+
   it('uses the key of the request as the key of the attempt', async () => {
     // `resolveAttempt` is handed the key from the frozen request, so the two must be
     // the same key. They were generated separately once, and resolving a real attempt

@@ -6,7 +6,8 @@
       "@nickkupriyanov/slotline-react": ["../../packages/react/src/index.ts"],
       "@nickkupriyanov/slotline-react/motion": ["../../packages/react/src/motion.ts"],
       "@nickkupriyanov/slotline-core": ["../../packages/core/src/index.ts"],
-      "@nickkupriyanov/slotline-core/dom": ["../../packages/core/src/dom/index.ts"]
+      "@nickkupriyanov/slotline-core/dom": ["../../packages/core/src/dom/index.ts"],
+      "@slotline/example-server": ["../../tools/dev-server/adapter.ts"]
     }
   },
   "include": ["src", "vite.config.ts"]

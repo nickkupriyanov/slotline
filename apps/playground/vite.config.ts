@@ -27,6 +27,11 @@ export default defineConfig({
         find: '@nickkupriyanov/slotline-react',
         replacement: source('../../packages/react/src/index.ts'),
       },
+      // The client of the teaching server, shared with the Angular playground.
+      {
+        find: '@slotline/example-server',
+        replacement: source('../../tools/dev-server/adapter.ts'),
+      },
       // The `/dom` subpath has to be matched first: the entry below is a prefix
       // alias and would otherwise rewrite it into `…/src/index.ts/dom`.
       {

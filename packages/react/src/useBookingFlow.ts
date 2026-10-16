@@ -102,6 +102,13 @@ function configOf<TValues>(
     ...(props.context === undefined ? {} : { context: props.context }),
     ...(props.formMode === undefined ? {} : { formMode: props.formMode }),
     ...(props.fields === undefined ? {} : { fields: props.fields }),
+    ...(props.timeZones === undefined ? {} : { timeZones: props.timeZones }),
+    ...(props.showTimeZoneSelector === undefined
+      ? {}
+      : { showTimeZoneSelector: props.showTimeZoneSelector }),
+    ...(props.showTimeFormatSelector === undefined
+      ? {}
+      : { showTimeFormatSelector: props.showTimeFormatSelector }),
     ...(props.validateValues === undefined ? {} : { validateValues: props.validateValues }),
   };
 }
@@ -130,6 +137,9 @@ function inputsOf<TValues>(
   if (props.timeFormat !== undefined) inputs.timeFormat = props.timeFormat;
   else if (props.defaultTimeFormat !== undefined)
     inputs.defaultTimeFormat = props.defaultTimeFormat;
+
+  if (props.timeZone !== undefined) inputs.timeZone = props.timeZone;
+  else if (props.defaultTimeZone !== undefined) inputs.defaultTimeZone = props.defaultTimeZone;
 
   if (props.values !== undefined) inputs.values = props.values as TValues;
   else if (props.defaultValues !== undefined) inputs.defaultValues = props.defaultValues as TValues;
@@ -176,6 +186,8 @@ export function useBookingController<TValues = DefaultBookingValues>(
         onSelectionChange: (selection, metadata) =>
           propsRef.current.onSelectionChange?.(selection, metadata),
         onValuesChange: (values, metadata) => propsRef.current.onValuesChange?.(values, metadata),
+        onTimeZoneChange: (timeZone_, metadata) =>
+          propsRef.current.onTimeZoneChange?.(timeZone_, metadata),
       },
     });
   }
@@ -245,6 +257,7 @@ export function useSlotlineUI<TValues = DefaultBookingValues>(
       messages,
       locale,
       theme,
+      layout: props.layout ?? 'compact',
       ...(props.components === undefined ? {} : { components: props.components }),
     }),
     [
@@ -256,6 +269,7 @@ export function useSlotlineUI<TValues = DefaultBookingValues>(
       props.onDismiss,
       props.onCheckStatus,
       props.components,
+      props.layout,
       messages,
       locale,
       theme,

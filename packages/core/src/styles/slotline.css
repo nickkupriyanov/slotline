@@ -3,6 +3,14 @@
    ========================================================================== */
 
 .sl-root {
+  /*
+   * The named container of the widget. Its inline size is the width the layout
+   * chose, so the container-query thresholds are the widths the specification
+   * names. The root itself is never styled by its own query: its width comes from
+   * `data-sl-layout`, which only the component sets.
+   */
+  container-type: inline-size;
+  container-name: slotline;
   display: inline-block;
   /*
    * The width has to be a definite length here, not a percentage and not on
@@ -17,9 +25,24 @@
    * intrinsic contribution at `--sl-width`, and `max-width: 100%` still lets it
    * shrink inside a narrower parent.
    */
-  width: var(--sl-width);
+  width: var(--sl-width-current, var(--sl-width));
   max-width: 100%;
   min-width: 0;
+  /* The height limit is a token, never a separate prop. */
+  max-height: var(--sl-max-height);
+}
+
+/*
+ * The layout is chosen by the component, not by the viewport, and the attribute
+ * only ever reflects that choice. Nothing here measures the card and flips it
+ * back, which is what keeps a narrow panel from oscillating between layouts.
+ */
+.sl-root[data-sl-layout='compact'] {
+  --sl-width-current: var(--sl-width);
+}
+
+.sl-root[data-sl-layout='adaptive'] {
+  --sl-width-current: var(--sl-width-adaptive);
 }
 
 /* Card -------------------------------------------------------------------- */
@@ -30,11 +53,14 @@
   flex-direction: column;
   gap: 10px;
   width: 100%;
+  min-height: 0;
+  max-height: 100%;
   padding: 12px;
   background: var(--sl-surface);
   border: 1px solid var(--sl-border);
   border-radius: var(--sl-radius-card);
   box-shadow: var(--sl-shadow-card);
+  max-height: var(--sl-max-height);
 }
 
 .sl-card:focus {
@@ -148,6 +174,39 @@
   background: var(--sl-panel);
   border: 1px solid var(--sl-border);
   border-radius: var(--sl-radius-panel);
+  /* With `--sl-max-height` set, the middle scrolls and everything else stays put. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.sl-card > .sl-header,
+.sl-card > .sl-footer {
+  flex: 0 0 auto;
+}
+
+/* Long labels, long values and wide action rows wrap instead of overflowing. */
+.sl-root {
+  overflow-wrap: anywhere;
+}
+
+.sl-header,
+.sl-header-main,
+.sl-title,
+.sl-badge,
+.sl-duration-group,
+.sl-calendar-nav {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.sl-summary-meta,
+.sl-slots-header,
+.sl-empty-title,
+.sl-empty-body {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Step transitions -------------------------------------------------------- */
@@ -402,10 +461,32 @@
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * How many offers sit in a row.
+ *
+ * The container fills `--sl-slot-columns-auto`; the public `--sl-slot-columns`
+ * resolves in front of it, so an application that sets the token keeps control and
+ * a container query never overwrites it.
+ */
 .sl-slots {
   display: grid;
-  grid-template-columns: repeat(var(--sl-slot-columns), minmax(0, 1fr));
+  grid-template-columns: repeat(
+    var(--sl-slot-columns, var(--sl-slot-columns-auto, 3)),
+    minmax(0, 1fr)
+  );
   gap: 8px;
+}
+
+@container slotline (max-width: 380px) {
+  .sl-slots {
+    --sl-slot-columns-auto: 2;
+  }
+}
+
+@container slotline (max-width: 300px) {
+  .sl-slots {
+    --sl-slot-columns-auto: 1;
+  }
 }
 
 .sl-slot {
@@ -847,15 +928,26 @@
   background: var(--sl-ink);
 }
 
-/* Narrow screens ---------------------------------------------------------- */
+/* Narrow containers ------------------------------------------------------- */
 
-@media (max-width: 380px) {
-  .sl-root {
-    --sl-slot-columns: 2;
-  }
-
+@container slotline (max-width: 380px) {
   .sl-title {
     font-size: 17px;
+  }
+}
+
+/*
+ * The adaptive layout puts the calendar beside the offers once the card is wide
+ * enough. Below that it stays one column — the attribute itself does not change,
+ * so the step never re-lays out while the user reads it.
+ */
+@container slotline (min-width: 720px) {
+  .sl-root[data-sl-layout='adaptive'] .sl-panel,
+  .sl-root[data-sl-layout='adaptive'] .sl-adaptive-pair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
   }
 }
 
@@ -899,4 +991,135 @@
   align-items: center;
   justify-content: center;
   text-decoration: none;
+}
+
+/* Time zone and 12/24 controls -------------------------------------------- */
+
+.sl-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.sl-control {
+  position: relative;
+}
+
+.sl-control-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--sl-text-subtle);
+  background: transparent;
+  border: 1px solid var(--sl-border);
+  border-radius: var(--sl-radius-pill);
+  cursor: pointer;
+}
+
+.sl-control-button:hover {
+  color: var(--sl-text);
+}
+
+.sl-control-value {
+  color: var(--sl-text);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The popover is absolutely positioned inside the widget, above the panel. The
+ * panel scrolls; the controls do not sit in it, and the card does not hide its
+ * overflow, so nothing clips this. An application whose own ancestors clip the
+ * widget renders its own control and calls the same actions.
+ */
+.sl-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(320px, 90vw);
+  max-height: 320px;
+  padding: 10px;
+  background: var(--sl-panel);
+  border: 1px solid var(--sl-border);
+  border-radius: var(--sl-radius-control);
+  box-shadow: var(--sl-shadow-card);
+}
+
+.sl-popover-search {
+  display: block;
+}
+
+.sl-popover-empty {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.sl-zone-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.sl-zone-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: var(--sl-radius-control);
+  cursor: pointer;
+}
+
+.sl-zone-option:hover,
+.sl-zone-option[data-state='active'] {
+  background: var(--sl-accent-soft);
+}
+
+.sl-zone-id {
+  font-size: 11px;
+  color: var(--sl-text-subtle);
+}
+
+.sl-segmented {
+  display: inline-flex;
+  padding: 2px;
+  background: var(--sl-accent-soft);
+  border-radius: var(--sl-radius-pill);
+}
+
+.sl-segmented-option {
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--sl-text-subtle);
+  background: transparent;
+  border: 0;
+  border-radius: var(--sl-radius-pill);
+  cursor: pointer;
+}
+
+.sl-segmented-option[data-state='active'] {
+  color: var(--sl-ink-contrast);
+  background: var(--sl-ink);
 }

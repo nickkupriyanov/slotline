@@ -22,6 +22,7 @@ import {
   formatUtcOffset,
   isRepeatedLocalTime,
   monthKeyOf,
+  resolveTimeZoneOptions,
   rotateToWeekStart,
   shortWeekdayNames,
   weekdayNames,
@@ -234,6 +235,27 @@ export interface BookingView {
   form: BookingFormView;
   attempt: BookingAttemptView | null;
   confirmation: BookingConfirmationView | null;
+  /** The zone the widget renders in, and the zones a built-in selector may offer. */
+  timeZone: {
+    current: string;
+    /** A readable name of the current zone. */
+    name: string;
+    showSelector: boolean;
+    options: string[];
+  };
+  /** The 12/24 setting, and whether the built-in switch is offered. */
+  timeFormat: {
+    current: TimeFormat;
+    showSelector: boolean;
+  };
+  /**
+   * Accessible name of the middle area — the step it currently shows.
+   *
+   * The area scrolls when `--sl-max-height` is set, and a scrolling region needs a
+   * name of its own: without one a screen reader announces "region" and nothing
+   * else.
+   */
+  panelLabel: string;
   actions: BookingActionsView;
   /** The polite live-region announcement for the current step. */
   live: { message: string };
@@ -495,6 +517,9 @@ export function deriveBookingView(
   /* -- confirmation -------------------------------------------------------- */
 
   const result = state.result;
+  /** The header and the panel's accessible name read the same title. */
+  const viewTitle =
+    state.step === 'confirmed' ? messages.bookedHeader : (config.title ?? messages.title);
   const confirmation: BookingConfirmationView | null = result
     ? {
         id: result.id,
@@ -553,7 +578,7 @@ export function deriveBookingView(
   return {
     step: state.step,
     direction: state.direction,
-    title: state.step === 'confirmed' ? messages.bookedHeader : (config.title ?? messages.title),
+    title: viewTitle,
     settings: {
       locale: config.locale,
       timeZone: config.timeZone,
@@ -607,6 +632,30 @@ export function deriveBookingView(
     form,
     attempt,
     confirmation,
+    timeZone: {
+      current: config.timeZone,
+      name: timeZoneName ?? config.timeZone,
+      showSelector: config.showTimeZoneSelector,
+      options: config.showTimeZoneSelector
+        ? resolveTimeZoneOptions(config.timeZone, config.timeZones)
+        : [],
+    },
+    timeFormat: {
+      current: config.timeFormat,
+      showSelector: config.showTimeFormatSelector,
+    },
+    // The name of the step the middle area shows. The recap, the attempt screen and
+    // the confirmation are named by their own heading.
+    panelLabel:
+      state.step === 'date'
+        ? messages.calendarLabel
+        : state.step === 'time'
+          ? messages.slotsLabel
+          : state.step === 'attempt'
+            ? (attempt?.title ?? viewTitle)
+            : state.step === 'confirmed'
+              ? (confirmation?.title ?? viewTitle)
+              : viewTitle,
     actions,
     live,
   };

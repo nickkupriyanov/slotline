@@ -86,11 +86,19 @@ export interface SlotlineProps<TValues = DefaultBookingValues> {
   onValuesChange?: (values: BookingValues, metadata: BookingChangeMetadata) => void;
   /** The application's own validation, on top of the field rules. */
   validateValues?: (values: BookingValues) => Record<string, string> | undefined;
+  /** The zones the built-in selector offers, in this order. */
+  timeZones?: readonly string[];
+  /** Whether the built-in time zone selector is offered. Default: `false`. */
+  showTimeZoneSelector?: boolean;
+  /** Whether the built-in 12/24 switch is offered. Default: `false`. */
+  showTimeFormatSelector?: boolean;
   /** Called whenever the duration changes, however it changed. */
   onDurationChange?: (duration: number, metadata: BookingChangeMetadata) => void;
   /** IANA time zone used for every date and time rendered. Default: the browser zone. */
   /** IANA time zone used for every date and time rendered, and for calendar queries. */
   timeZone?: string;
+  /** Called whenever the zone changes, whether by the built-in selector or from outside. */
+  onTimeZoneChange?: (timeZone: string, metadata: BookingChangeMetadata) => void;
   /** Uncontrolled initial time zone. Default: the browser zone. */
   defaultTimeZone?: string;
   /** Built-in locale (`en`, `ru`) or any tag understood by `Intl`. Default: browser. */
@@ -142,6 +150,12 @@ export interface SlotlineProps<TValues = DefaultBookingValues> {
   autoFocus?: boolean;
   /** Trap `Tab` inside the card and let `Escape` go back. Default: `false` (inline widgets should not trap focus). */
   trapFocus?: boolean;
+  /**
+   * `compact` (default) keeps the card at `--sl-width`; `adaptive` uses
+   * `--sl-width-adaptive` and lets container queries re-compose the content. The
+   * choice is the component's: nothing measures the card and switches it back.
+   */
+  layout?: 'compact' | 'adaptive';
   /** Replace the built-in animation kit (see `@nickkupriyanov/slotline-react/motion`). */
   animations?: AnimationKit;
   /**

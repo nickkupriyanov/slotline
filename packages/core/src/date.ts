@@ -329,6 +329,27 @@ export function formatTimeZoneName(
   return parts.find((part) => part.type === 'timeZoneName')?.value;
 }
 
+/**
+ * The zones a selector offers.
+ *
+ * An explicit list wins, and keeps the application's order — with the current zone
+ * added if it is missing, because a selector that cannot show where you are is worse
+ * than no selector. Without a list the runtime is asked, and UTC and the current zone
+ * are always present; where the runtime cannot enumerate zones, those two are all
+ * there is.
+ */
+export function resolveTimeZoneOptions(current: string, listed?: readonly string[]): string[] {
+  if (listed && listed.length > 0) {
+    const zones = [...listed];
+    if (!zones.includes(current)) zones.push(current);
+    return [...new Set(zones)];
+  }
+
+  const supported =
+    typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [];
+  return [...new Set(['UTC', current, ...supported])].sort();
+}
+
 export function resolveTimeZone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';

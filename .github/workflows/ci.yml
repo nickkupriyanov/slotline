@@ -125,6 +125,16 @@ jobs:
       - name: Angular playground in a real browser
         run: pnpm check:gallery
 
+      # Container queries, overflow and focus visibility only exist in a real
+      # engine, so the widths the specification names are measured there.
+      - name: Container adaptation in a real browser
+        run: pnpm check:container
+
+      # The teaching server keeps the promises the adapter and the widget rely on:
+      # an idempotent create, a discernible conflict, and a lookup for a lost answer.
+      - name: Teaching server
+        run: pnpm test:server
+
       # jsdom has no layout engine, so the width invariant is measured in a real
       # browser. The runner ships Chrome at /usr/bin/google-chrome, which
       # tools/screenshot.mjs already looks for.

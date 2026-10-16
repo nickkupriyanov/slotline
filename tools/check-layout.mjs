@@ -44,6 +44,16 @@ const PROBE = `
   // A layout has one width; different layouts are allowed to differ, which is the
   // whole point of the adaptive layout.
   const compact = measured.find((entry) => entry.layout === 'compact') || measured[0];
+  // The adaptive case is the one that composes two columns; it is marked, so the
+  // check knows which case to look at rather than which index to assume.
+  const adaptiveItem = items.find((item) => item.getAttribute('data-sl-layout') === 'adaptive');
+  const pair = adaptiveItem?.querySelector('.sl-adaptive-pair');
+  const adaptivePair = {
+    present: !!pair,
+    children: pair ? pair.children.length : 0,
+    columns: pair ? getComputedStyle(pair).gridTemplateColumns.split(' ').length : 0,
+  };
+
   const first = items[0];
   const previous = first.style.width;
   first.style.width = '320px';
@@ -52,7 +62,7 @@ const PROBE = `
   const wide = width(first.querySelector('.sl-card'));
   first.style.width = previous;
 
-  return { measured, narrowParent: narrow, wideParent: wide };
+  return { measured, narrowParent: narrow, wideParent: wide, adaptivePair };
 })()
 `;
 
@@ -118,6 +128,17 @@ for (const entry of report.measured) {
     failures.push(`${entry.step}: card ${entry.width}px ≠ root ${entry.expected}px`);
   }
 }
+if (!report.adaptivePair.present || report.adaptivePair.children !== 2) {
+  failures.push(
+    `the adaptive case does not compose two columns (pair ${
+      report.adaptivePair.present ? `${report.adaptivePair.children} children` : 'missing'
+    })`,
+  );
+}
+if (report.adaptivePair.columns !== 2) {
+  failures.push(`the adaptive pair is ${report.adaptivePair.columns} columns, expected 2`);
+}
+
 if (report.narrowParent !== 320) {
   failures.push(`320px parent → ${report.narrowParent}px widget`);
 }
@@ -131,6 +152,9 @@ console.log(
   `cases:    ${report.measured.map((e) => `${e.step}/${e.layout} ${e.width}px`).join('  ·  ')}`,
 );
 console.log(`parents:  320px → ${report.narrowParent}px   1000px → ${report.wideParent}px`);
+console.log(
+  `adaptive: ${report.adaptivePair.children} children, ${report.adaptivePair.columns} columns`,
+);
 
 if (failures.length > 0) {
   console.error('\n✗ layout check failed:');
