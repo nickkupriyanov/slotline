@@ -107,12 +107,15 @@ const PROBE = `
   await at(400);
 
   // A height limit scrolls the middle area, which must be a named region. The widget
-  // declares its own token defaults, so the value goes on the widget root.
-  root().style.setProperty('--sl-max-height', '420px');
-  await sleep(150);
+  // declares its own token defaults, so the value goes on the widget root. The limit
+  // is derived from the content actually on screen, so it always cuts something off.
   const panel = document.querySelector('.sl-panel');
   const header = document.querySelector('.sl-header');
   const cardElement = card();
+  const naturalHeight = panel.scrollHeight;
+  const limit = Math.min(420, Math.max(120, naturalHeight - 40));
+  root().style.setProperty('--sl-max-height', limit + 'px');
+  await sleep(150);
   const scrolling = {
     scrolls: panel.scrollHeight > panel.clientHeight + 1,
     role: panel.getAttribute('role'),
