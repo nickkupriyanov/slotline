@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Browser check for the Angular playground: its state gallery and its "widget as a
- * field of someone else's form" example.
+ * Browser check for the Angular playground: its state gallery, its "widget as a field
+ * of someone else's form" example, and its services and resources example.
  *
  * The gallery drives five real widgets to five different screens through the
  * controller's own actions, so it is the one place where "the binding renders every
@@ -319,4 +319,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('\n✓ every screen of the flow renders, and the form example submits its own value');
+console.log('\n✓ every screen of the flow renders, and both examples drive the widget');
